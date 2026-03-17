@@ -151,11 +151,6 @@ def data_cleaning(df):
             errors="coerce",
         )
 
-    df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
-    df["buisness_year"] = df["buisness_year"].astype("int64")
-    df["posting_date"] = pd.to_datetime(df["posting_date"], errors="coerce")
-    df["document_create_date"] = pd.to_datetime(df["document_create_date"], errors="coerce")
-    df["document_create_date.1"] = pd.to_datetime(df["document_create_date.1"], errors="coerce")
     df["due_in_date"] = parse_yyyymmdd_float(df["due_in_date"])
     df["baseline_create_date"] = parse_yyyymmdd_float(df["baseline_create_date"])
 
