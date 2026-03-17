@@ -197,3 +197,56 @@ def simulate_past_performance(pipeline, df):
         print(f"Cutoff {cutoff.date()} -> log_loss: {score:.4f}")
 
     print(f"\nAverage: {np.mean(scores):.4f} (std: {np.std(scores):.4f})")
+
+def build_sliding_window_snapshots(df):
+    """Build an augmented dataset by sliding a weekly window over invoice history.
+
+    For each weekly snapshot, the function selects all invoices that have been
+    sent but not yet paid as of the current window date. It then engineers
+    additional features via the provided callback and computes the target
+    variable ('week_bucket') indicating how many weeks until payment, capped
+    at 7 (meaning 7+ weeks out).
+
+    The window starts at the earliest invoice send date and advances in
+    one-week increments until six weeks before the latest payment date,
+    ensuring every snapshot has a fully observable target.
+
+    Args:
+        invoices: pandas DataFrame with at least the columns 'invoice_sent'
+            and 'invoice_paid' (both datetime). May contain additional
+            columns consumed by the feature engineering callback.
+
+    Returns:
+        A pandas DataFrame combining all weekly snapshots, with added columns
+        'reference_date', 'days_to_payment', and 'week_bucket' (int, 1–7).
+    """
+    all_snapshots = []
+
+    start_date = df["invoice_sent"].min()
+    end_date = df["invoice_paid"].max() - pd.Timedelta(weeks=6)
+    stride = pd.Timedelta(weeks=1)
+
+    current = start_date
+    while current <= end_date:
+        snapshot = df[
+            (df["invoice_sent"] <= current) &
+            (df["invoice_paid"] > current)
+        ].copy()
+
+        snapshot = engineer_features(snapshot, df, current)
+
+        snapshot["reference_date"] = current
+        snapshot["days_to_payment"] = (snapshot["invoice_paid"] - current).dt.days
+        snapshot["week_bucket"] = np.ceil(snapshot["days_to_payment"] / 7).astype(int)
+        snapshot["week_bucket"] = snapshot["week_bucket"].clip(lower=1)
+        snapshot.loc[snapshot["week_bucket"] > 7, "week_bucket"] = 7
+
+        all_snapshots.append(snapshot)
+        current += stride
+
+    big_df = pd.concat(all_snapshots, ignore_index=True)
+    print(f"Original rows: {len(df)}")
+    print(f"Augmented rows: {len(big_df)}")
+    print(big_df["week_bucket"].value_counts().sort_index())
+
+    return big_df
