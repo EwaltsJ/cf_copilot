@@ -54,7 +54,7 @@ def engineer_features(snapshot, df_full, current_date):
 
     # Get all invoices that are paid before current_date
     historical = df_full[df_full["invoice_paid"] <= current_date].copy()
-    # Get all invoices that are paid before current_date
+
     # Calculate delay for all paid invoices
     historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)
     # Calculate avg delay for each customer
@@ -106,9 +106,6 @@ def engineer_features(snapshot, df_full, current_date):
         snapshot["invoice_amount"].clip(lower=0)
     )
 
-    # 13. Remaining balance (same as total_open_amount here)
-    snapshot["open_amount"] = snapshot["total_open_amount"]
-
     # Size categories: first fixed bins
     size_bins_fixed = [-np.inf, 10000, 100000, np.inf]
     size_labels = ["small", "medium", "large"]
@@ -119,7 +116,7 @@ def engineer_features(snapshot, df_full, current_date):
         labels=size_labels,
     )
 
-    # 14. Optional: quantile-based bins computed on full history (df_full)
+    # 13. Optional: quantile-based bins computed on full history (df_full)
     q1, q2 = df_full["total_open_amount"].quantile([0.33, 0.66])
     size_bins_quant = [-np.inf, q1, q2, np.inf]
 
@@ -187,8 +184,8 @@ def data_cleaning(df):
     df = df.sort_values("invoice_sent").reset_index(drop=True)
 
     # 10. create two dfs, one for training one for testing.
-    model_df = df[df["invoice_paid"].notnull()] # testing, full40k
-    demo_df = df # training,full 50k
+    model_df = df[df["invoice_paid"].notnull()] # training, full 40k
+    demo_df = df # testing, full 50k
 
     # 11. save the models in raw_data folder
     def save_processed_frames():
