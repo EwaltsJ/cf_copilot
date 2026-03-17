@@ -76,15 +76,28 @@ def engineer_features(snapshot, df_full, current_date):
     return snapshot
 
 def preprocess(df):
-    # make sure there are no empty targets
+    """Preprocess a DataFrame for model training or inference.
+
+    Cleans the input data by removing rows without targets, imputing missing
+    values in customer history features, and splitting into feature matrix
+    and target vector. Identifier columns, date columns, and leaky columns
+    are excluded from the feature set.
+
+    Args:
+        df: pandas DataFrame containing invoice-level records with at least
+            the columns 'week_bucket', 'customer_avg_delay',
+            'late_payment_ratio', and 'days_since_last_invoice'.
+
+    Returns:
+        A tuple (X, y) where X is a DataFrame of feature columns and y is
+        a Series of 'week_bucket' target labels.
+    """
     df = df.dropna(subset=["week_bucket"])
 
-    # Fill NaN for customers with no history
     df["customer_avg_delay"] = df["customer_avg_delay"].fillna(0)
     df["late_payment_ratio"] = df["late_payment_ratio"].fillna(0)
-    df["days_since_last_invoice"] = df["days_since_last_invoice"].fillna(-1)  # flag as unknown
+    df["days_since_last_invoice"] = df["days_since_last_invoice"].fillna(-1)
 
-    # Define feature columns (exclude identifiers, dates, target, leaky columns)
     drop_cols = [
         "cust_number", "due_in_date", "invoice_sent", "reference_date", "week_bucket", "days_to_payment"
     ]
@@ -96,12 +109,40 @@ def preprocess(df):
     return X, y
 
 def evaluate_model(probas, preds, y_test):
+    """Print standard classification metrics for a multi-class model.
+
+    Outputs log loss, a per-class precision/recall/F1 classification report,
+    and the confusion matrix to stdout.
+
+    Args:
+        probas: array-like of shape (n_samples, n_classes) with predicted
+            class probabilities.
+        preds: array-like of shape (n_samples,) with predicted class labels.
+        y_test: array-like of shape (n_samples,) with true class labels.
+
+    Returns:
+        None
+    """
     print(f"Log loss: {log_loss(y_test, probas):.4f}")
     print(classification_report(y_test, preds))
     print(confusion_matrix(y_test, preds))
     return None
 
+
 def show_calibration_curves(probas, pipeline, y_test):
+    """Plot one-vs-rest calibration curves for each target bucket.
+
+    For every class in the pipeline, a subplot compares the mean predicted
+    probability against the observed frequency across 10 bins, with a
+    diagonal reference line representing perfect calibration.
+
+    Args:
+        probas: array-like of shape (n_samples, n_classes) with predicted
+            class probabilities.
+        pipeline: fitted estimator exposing a `classes_` attribute that
+            lists the target buckets.
+        y_test: array-like of shape (n_samples,) with true class labels.
+    """
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     for i, bucket in enumerate(pipeline.classes_):
         ax = axes.flat[i]
@@ -117,6 +158,20 @@ def show_calibration_curves(probas, pipeline, y_test):
 
 
 def simulate_past_performance(pipeline, df):
+    """Run a walk-forward backtest of the pipeline over historical cutoffs.
+
+    Selects five temporal cutoff points (at the 40th through 80th
+    percentiles of reference dates). For each cutoff, the model is trained
+    on all data up to that date and evaluated on the following six weeks.
+    Log loss is printed per cutoff along with the mean and standard
+    deviation across all folds.
+
+    Args:
+        pipeline: an unfitted scikit-learn estimator (or pipeline) with
+            fit and predict_proba methods.
+        df: pandas DataFrame containing the full dataset, including a
+            'reference_date' column used for temporal splitting.
+    """
     reference_dates = df["reference_date"].sort_values().unique()
     cutoffs = np.percentile(reference_dates.astype(int), [40, 50, 60, 70, 80])
     cutoffs = pd.to_datetime(cutoffs)
