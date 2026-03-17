@@ -131,7 +131,6 @@ def engineer_features(snapshot, df_full, current_date):
 
     return snapshot
 
-
 def data_cleaning(df):
     """Clean the data and create csvs."""
 
