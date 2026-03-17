@@ -9,11 +9,31 @@ from sklearn.calibration import calibration_curve
 def engineer_features(snapshot, df_full, current_date):
     """Engineer all features for a given reference date."""
 
+    # ------------------------------------------------------------------
+    # A) Invoice timing features (row-level, per invoice)
+    # ------------------------------------------------------------------
+
+    # 0. Is invoice Open?
+    open_invoice = snapshot["invoice_paid"].isna() | (snapshot["invoice_paid"]\
+        >current_date)
     # 1. Invoice age
-    snapshot["invoice_age_days"] = (current_date - snapshot["invoice_sent"]).dt.days
+    snapshot["invoice_age_days"] = np.where(
+        open_invoice,
+        (current_date - snapshot["invoice_sent"]).dt.days,
+        np.nan
+    )
 
     # 2. Days until due date
-    snapshot["days_until_due"] = (snapshot["due_in_date"] - current_date).dt.days
+    snapshot["days_until_due"] = np.where(
+        open_invoice,
+        (snapshot["due_in_date"] - current_date).dt.days,
+        np.nan,
+    )
+    # 3. Pay Terms
+    snapshot["pay_terms_days"] = (
+        (snapshot["due_in_date"] - snapshot["invoice_sent"])
+        .dt.days
+    )
 
     # 3. Invoice month
     snapshot["invoice_month"] = snapshot["invoice_sent"].dt.month
@@ -22,15 +42,19 @@ def engineer_features(snapshot, df_full, current_date):
     snapshot["due_month"] = snapshot["due_in_date"].dt.month
 
     # 5. Days past due
+    # days past due
     snapshot["days_past_due"] = (current_date - snapshot["due_in_date"]).dt.days
+
+    # ------------------------------------------------------------------
+    # B) Customer behaviour features (customer-level, using full history)
+    # ------------------------------------------------------------------
 
     # Behaviour specific to one customer. Needs to be calculated on whole DF,
     # since we need historical data for it
 
     # Get all invoices that are paid before current_date
     historical = df_full[df_full["invoice_paid"] <= current_date].copy()
-
-    # 6. Customer average payment delay
+    # Get all invoices that are paid before current_date
     # Calculate delay for all paid invoices
     historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)
     # Calculate avg delay for each customer
@@ -70,10 +94,122 @@ def engineer_features(snapshot, df_full, current_date):
     # Fill NaN for new customers
     snapshot["prev_transaction_count"] = snapshot["prev_transaction_count"].fillna(0).astype(int)
 
-    # 13. Open amount
+    # ------------------------------------------------------------------
+    # C) Invoice characteristics (amount-based features)
+    # ------------------------------------------------------------------
+
+    # Base amount
+    snapshot["invoice_amount"] = snapshot["total_open_amount"]
+
+    # 12. Log-transform
+    snapshot["invoice_amount_log"] = np.log1p(
+        snapshot["invoice_amount"].clip(lower=0)
+    )
+
+    # 13. Remaining balance (same as total_open_amount here)
     snapshot["open_amount"] = snapshot["total_open_amount"]
 
+    # Size categories: first fixed bins
+    size_bins_fixed = [-np.inf, 10000, 100000, np.inf]
+    size_labels = ["small", "medium", "large"]
+
+    snapshot["invoice_size_cat"] = pd.cut(
+        snapshot["invoice_amount"],
+        bins=size_bins_fixed,
+        labels=size_labels,
+    )
+
+    # 14. Optional: quantile-based bins computed on full history (df_full)
+    q1, q2 = df_full["total_open_amount"].quantile([0.33, 0.66])
+    size_bins_quant = [-np.inf, q1, q2, np.inf]
+
+    snapshot["invoice_size_cat_q"] = pd.cut(
+        snapshot["invoice_amount"],
+        bins=size_bins_quant,
+        labels=size_labels,
+    )
+
     return snapshot
+
+
+def data_cleaning(df):
+    """Clean the data and create csvs."""
+
+    # 1. Drop duplicate rows
+    df = df.drop_duplicates()
+
+    # 2. strip column names, and standardize the cases
+    df.columns = df.columns.str.strip()
+
+    # 3. Drop invalid invoice ids rows
+    df = df.dropna(subset=["invoice_id"]).copy()
+    df["invoice_id"] = pd.to_numeric(df["invoice_id"], errors="coerce")
+    # 3.1 even if failed to parse,just drop them
+    df = df[df["invoice_id"].notna()].copy()
+
+    # 4. fixing date formats
+    def parse_yyyymmdd_float(s):
+        return pd.to_datetime(
+            pd.to_numeric(s, errors="coerce").astype("Int64").astype("string"),
+            format="%Y%m%d",
+            errors="coerce",
+        )
+
+    df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
+    df["buisness_year"] = df["buisness_year"].astype("int64")
+    df["posting_date"] = pd.to_datetime(df["posting_date"], errors="coerce")
+    df["document_create_date"] = pd.to_datetime(df["document_create_date"], errors="coerce")
+    df["document_create_date.1"] = pd.to_datetime(df["document_create_date.1"], errors="coerce")
+    df["due_in_date"] = parse_yyyymmdd_float(df["due_in_date"])
+    df["baseline_create_date"] = parse_yyyymmdd_float(df["baseline_create_date"])
+
+    # 5. Now cast IDs
+    df["doc_id"] = df["doc_id"].astype("int64")
+    df["invoice_id"] = df["invoice_id"].astype("int64")
+
+    # 6. standardize cat_cols
+    cat_cols = ["business_code", "invoice_currency", "cust_payment_terms",\
+        "name_customer"]
+    for c in cat_cols:
+        df[c] = df[c].astype(str)
+
+    # 7. drop unncessary columns after analysis
+    #drop_cols=['area_business',"posting_id","invoice_id","document_create_date","isOpen",'document type','document_create_date.1']
+    #df=df.drop(columns=drop_cols)
+    df = df[['cust_number','buisness_year','due_in_date', 'invoice_currency', 'document type',\
+        'total_open_amount','baseline_create_date', 'cust_payment_terms', 'clear_date']]
+
+    # 8. Renaming misspelled columns
+    df.rename(columns={'buisness_year': 'business_year', 'clear_date':\
+        'invoice_paid', 'document type': 'document_type', \
+        'baseline_create_date': 'invoice_sent'}, inplace=True)
+
+    # 9. sort the df by date
+    df = df.sort_values("invoice_sent").reset_index(drop=True)
+
+    # 10. create two dfs, one for training one for testing.
+    model_df = df[df["invoice_paid"].notnull()] # testing, full40k
+    demo_df = df # training,full 50k
+
+    # 11. save the models in raw_data folder
+    def save_processed_frames():
+        base_dir = Path.cwd().parent          # one level up from notebook
+        raw_data_dir = base_dir / "raw_data"
+        raw_data_dir.mkdir(parents=True, exist_ok=True)
+
+        model_path = raw_data_dir / "model_df.csv"
+        demo_path = raw_data_dir / "demo_df.csv"
+
+        model_df.to_csv(model_path, index=False)
+        demo_df.to_csv(demo_path, index=False)
+
+        print(f"Saved model_df to {model_path}")
+        print(f"Saved demo_df to {demo_path}")
+
+    save_processed_frames()
+
+    return model_df,demo_df
+
 
 def preprocess(df):
     """Preprocess a DataFrame for model training or inference.
