@@ -3,10 +3,10 @@
 #      a slim or tensorflow base
 
 #      Standard version
-FROM python:3.12-slim
+FROM python:3.10.6-slim
 
 #      Slim version
-# FROM python:3.12-slim
+# FROM python:3.10.6-slim
 
 #      Tensorflow version (attention: won't run on Apple Silicon)
 # FROM tensorflow/tensorflow:2.16.1
