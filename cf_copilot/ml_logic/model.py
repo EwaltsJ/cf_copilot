@@ -12,7 +12,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, log_loss, confusion_matrix
 from sklearn.calibration import calibration_curve
 
-from cf_copilot.ml_logic.encoders import NUMERIC_FEATURES, CATEGORICAL_FEATURES, preprocess
+from cf_copilot.params import NUMERIC_FEATURES, CATEGORICAL_FEATURES
+from cf_copilot.ml_logic.encoders import preprocess
 
 
 def initialize_model() -> Pipeline:

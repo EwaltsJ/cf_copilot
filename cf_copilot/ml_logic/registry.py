@@ -2,6 +2,8 @@ import os
 import pickle
 import time
 
+from cf_copilot.params import LOCAL_REGISTRY_PATH
+
 def save_model(model=None) -> None:
     """Save the fitted pipeline (preprocessor + classifier) locally.
 
