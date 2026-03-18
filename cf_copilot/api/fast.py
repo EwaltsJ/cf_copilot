@@ -47,7 +47,7 @@ async def post_predict(file: UploadFile = File(...)):
     current_date = pd.Timestamp.now()
     featured_df = engineer_features(model_df, model_df, current_date)
 
-    X, _ = preprocess(featured_df)
+    X, _ = preprocess(featured_df, inference=True)
 
     results = predict(pipeline, X)
 
