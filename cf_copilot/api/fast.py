@@ -51,11 +51,16 @@ async def post_predict(file: UploadFile = File(...)):
 
     results = predict(pipeline, X)
 
+    buckets = [int(b) for b in pipeline.classes_]
+
     predictions = []
     for i in range(len(X)):
         predictions.append({
-            "week_bucket": int(results["week_bucket"][i]),
-            "probabilities": results["probabilities"][i].tolist(),
+            "predicted_bucket": int(results["week_bucket"][i]),
+            "bucket_probabilities": {
+                f"week_{b}": round(float(results["probabilities"][i][j]), 4)
+                for j, b in enumerate(buckets)
+            },
         })
 
     return {"predictions": predictions}
