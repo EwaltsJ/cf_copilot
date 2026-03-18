@@ -2,7 +2,7 @@
 # Install, clean, test #
 #======================#
 reinstall_package:
-	@pip uninstall -y packagename || :
+	@pip uninstall -y cf_copilot || :
 	@pip install -e .
 
 install_requirements:
@@ -27,7 +27,7 @@ test_structure:
 #======================#
 
 run_api:
-	uvicorn packagename.api.fast:app --reload --port 8000
+	uvicorn cf_copilot.api.fast:app --reload --port 8000
 
 
 #======================#

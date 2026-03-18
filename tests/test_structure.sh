@@ -23,8 +23,8 @@ else
 fi
 
 # Check if packagename has been changed
-if [[ -e "packagename" ]]; then
-  echo -e "\e[0;31mERROR:   \e[0mYou should rename your package (currently 'packagename')
+if [[ -e "cf_copilot" ]]; then
+  echo -e "\e[0;31mERROR:   \e[0mYou should rename your package (currently 'cf_copilot')
          (Don't forget to update setup.py too)\e[0m";
   ((errors++));
 fi
