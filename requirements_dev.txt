@@ -3,7 +3,7 @@ pip
 setuptools
 twine
 wheel
-
+colorama
 # python and debugging
 ipdb
 ipykernel
