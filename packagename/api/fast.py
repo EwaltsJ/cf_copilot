@@ -25,7 +25,7 @@ def root():
 @app.get("/predict")
 def get_predict(input_one: float,
             input_two: float):
-    # TODO: Do something with your input
+    # TODO: Do something with your input to work on
     # i.e. feed it to your model.predict, and return the output
     # For a dummy version, just return the sum of the two inputs and the original inputs
     prediction = float(input_one) + float(input_two)
