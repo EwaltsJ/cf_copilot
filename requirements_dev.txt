@@ -3,7 +3,7 @@ pip
 setuptools
 twine
 wheel
-
+colorama
 # python and debugging
 ipdb
 ipykernel
@@ -11,6 +11,9 @@ ipykernel
 # data viz
 matplotlib
 seaborn
+
+google-cloud-storage==2.14.0
+mlflow==2.1.1
 
 # jupyter
 jupyter-contrib-core==0.4.0

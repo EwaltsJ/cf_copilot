@@ -1,10 +1,10 @@
 # data science
-numpy<2.0.0
-pandas==2.2.3
+numpy
+pandas
 matplotlib
-
+colorama
 # Uncomment if you use sklearn
-scikit-learn==1.6.1
+scikit-learn
 
 # Install the correct TensorFlow version
 # Uncomment if you use TensorFlow
@@ -13,7 +13,8 @@ scikit-learn==1.6.1
 
 # Google Cloud
 # Uncomment if you use Google Cloud Storage
-# google-cloud-storage
+google-cloud-storage
+mlflow
 
 # API
 fastapi
