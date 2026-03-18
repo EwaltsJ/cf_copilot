@@ -1,6 +1,9 @@
 #======================#
 # Install, clean, test #
 #======================#
+reinstall_package:
+	@pip uninstall -y packagename || :
+	@pip install -e .
 
 install_requirements:
 	@pip install -r requirements.txt
@@ -125,3 +128,10 @@ test_api_root:
 	  tests/api/test_endpoints.py::test_root_is_up \
 	  tests/api/test_endpoints.py::test_root_returns_greeting \
 	  --asyncio-mode=strict -W "ignore"
+
+test_api_predict:
+	pytest \
+	tests/api/test_endpoints.py::test_predict_is_up --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_is_dict --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_has_key --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_val_is_float --asyncio-mode=strict -W "ignore"
