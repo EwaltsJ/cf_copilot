@@ -40,11 +40,11 @@ def initialize_model() -> Pipeline:
     )
 
     classifier = RandomForestClassifier(
-        n_estimators=400,
-        max_depth=20,
-        min_samples_split=10,
-        min_samples_leaf=4,
-        max_features=0.3,
+        n_estimators=467,
+        max_depth=18,
+        min_samples_split=6,
+        min_samples_leaf=2,
+        max_features= 0.35,
         class_weight="balanced",
         random_state=42,
         n_jobs=-1,
