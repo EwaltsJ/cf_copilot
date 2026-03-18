@@ -1,9 +1,10 @@
 # data science
 numpy<2.0.0
 pandas==2.2.3
+matplotlib
 
 # Uncomment if you use sklearn
-# scikit-learn==1.6.1
+scikit-learn==1.6.1
 
 # Install the correct TensorFlow version
 # Uncomment if you use TensorFlow

@@ -135,3 +135,7 @@ test_api_predict:
 	tests/api/test_endpoints.py::test_predict_is_dict --asyncio-mode=strict -W "ignore" \
 	tests/api/test_endpoints.py::test_predict_has_key --asyncio-mode=strict -W "ignore" \
 	tests/api/test_endpoints.py::test_predict_val_is_float --asyncio-mode=strict -W "ignore"
+
+test_api_on_docker:
+	pytest \
+	tests/api/test_docker_endpoints.py --asyncio-mode=strict -W "ignore"

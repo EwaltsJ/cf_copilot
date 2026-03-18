@@ -1,4 +1,6 @@
-# TEST : docker build --tag=$GAR_IMAGE:dev .
+# TEST : 1) docker build --tag=$GAR_IMAGE:dev .
+#        2) docker run -it -e PORT=8000 -p 8000:8000 $GAR_IMAGE:dev bash
+#        3) docker run -it -e PORT=8000 -p 8000:8000 $GAR_IMAGE:dev
 
 # TODO: select a base image
 # Tip: start with a full base image, and then see if you can optimize with
