@@ -66,6 +66,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
 
     df["due_in_date"] = parse_yyyymmdd_float(df["due_in_date"])
     df["baseline_create_date"] = parse_yyyymmdd_float(df["baseline_create_date"])
+    df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
 
     # Cast IDs
     df["doc_id"] = df["doc_id"].astype("int64")
