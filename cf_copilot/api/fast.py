@@ -3,7 +3,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from packagename.cf_copilot.utils import load_cashflow_data
+from cf_copilot.utils import load_cashflow_data
 app = FastAPI()
 
 app.add_middleware(
