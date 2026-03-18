@@ -14,7 +14,10 @@ scikit-learn
 # Google Cloud
 # Uncomment if you use Google Cloud Storage
 google-cloud-storage
-mlflow
+google-cloud-bigquery
+google-cloud-storage==2.14.0
+google-api-core==2.8.2
+googleapis-common-protos==1.56.4
 
 # API
 fastapi
@@ -24,3 +27,11 @@ kagglehub
 # tests
 httpx<0.28
 pytest-asyncio
+
+# prevent bq 3+ db-dtypes package error when running training from bq
+
+mlflow==2.1.1
+prefect==2.19.2
+
+python-dotenv
+psycopg2-binary
