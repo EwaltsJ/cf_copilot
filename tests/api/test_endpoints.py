@@ -10,7 +10,7 @@ test_params = {
 
 @pytest.mark.asyncio
 async def test_root_is_up():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/")
     assert response.status_code == 200
@@ -18,7 +18,7 @@ async def test_root_is_up():
 
 @pytest.mark.asyncio
 async def test_root_returns_greeting():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/")
     assert response.json() == {"message": "Hi, The API is running!"}
@@ -26,7 +26,7 @@ async def test_root_returns_greeting():
 
 @pytest.mark.asyncio
 async def test_predict_is_up():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/predict", params=test_params)
     assert response.status_code == 200
@@ -34,7 +34,7 @@ async def test_predict_is_up():
 
 @pytest.mark.asyncio
 async def test_predict_is_dict():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/predict", params=test_params)
     body = response.json()
@@ -44,7 +44,7 @@ async def test_predict_is_dict():
 
 @pytest.mark.asyncio
 async def test_predict_has_key():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/predict", params=test_params)
     assert "prediction" in response.json()
@@ -52,7 +52,7 @@ async def test_predict_has_key():
 
 @pytest.mark.asyncio
 async def test_predict_val_is_float():
-    from packagename.api.fast import app
+    from cf_copilot.api.fast import app
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get("/predict", params=test_params)
     assert isinstance(response.json().get("prediction"), float)
