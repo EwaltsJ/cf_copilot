@@ -1,10 +1,36 @@
 import numpy as np
 import pandas as pd
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
 import matplotlib.pyplot as plt
 from pathlib import Path
 from sklearn.metrics import classification_report, log_loss, confusion_matrix
 from sklearn.calibration import calibration_curve
 
+def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
+    # 1) Look for local file first: raw_data/dataset.csv at project root
+    base_dir = Path(__file__).resolve().parents[2]  # repo root (cf_copilot/)
+    raw_data_dir = base_dir / "raw_data"
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
+    local_path = raw_data_dir / csv_name
+
+    if local_path.is_file():
+        print(f"Loading local file: {local_path}")
+        return pd.read_csv(local_path)
+
+    # 2) If not found, download from Kaggle once via kagglehub
+    print("Local file not found, downloading from Kaggle via kagglehub...")
+    df = kagglehub.dataset_load(
+        KaggleDatasetAdapter.PANDAS,
+        "pradumn203/payment-date-prediction-for-invoices-dataset",
+        "dataset.csv",
+    )
+
+    # Save for future offline use
+    df.to_csv(local_path, index=False)
+    print(f"Saved local copy to {local_path}")
+
+    return df
 
 def engineer_features(snapshot, df_full, current_date):
     """Engineer all features for a given reference date."""

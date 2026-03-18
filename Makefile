@@ -1,6 +1,9 @@
 #======================#
 # Install, clean, test #
 #======================#
+reinstall_package:
+	@pip uninstall -y packagename || :
+	@pip install -e .
 
 install_requirements:
 	@pip install -r requirements.txt
@@ -24,7 +27,7 @@ test_structure:
 #======================#
 
 run_api:
-	uvicorn api.fast:app --reload --port 8000
+	uvicorn packagename.api.fast:app --reload --port 8000
 
 
 #======================#
@@ -40,6 +43,7 @@ gcloud-set-project:
 #         Docker       #
 #======================#
 
+# Uses DOCKER_IMAGE_NAME from .env
 # Local images - using local computer's architecture
 # i.e. linux/amd64 for Windows / Linux / Apple with Intel chip
 #      linux/arm64 for Apple with Apple Silicon (M1 / M2 chip)
@@ -94,23 +98,78 @@ docker_run_interactively:
 		$(DOCKER_IMAGE_PATH):prod \
 		bash
 
-# Push and deploy to cloud
+#======================#
+#  GCP CLOUD PROTOCAL  #
+#======================#
 
+# 1) Configure Docker auth
 docker_allow:
 	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev
 
+# 2) Create Artifact Registry repo
 docker_create_repo:
 	gcloud artifacts repositories create $(DOCKER_REPO_NAME) \
 		--repository-format=docker \
 		--location=$(GCP_REGION) \
 		--description="Repository for storing docker images"
 
+# 3) Build image for Cloud Run (linux/amd64, prod tag)
+# use docker_build mentioned above uses, $(DOCKER_IMAGE_PATH)
+
+# 4) Push image to Artifact Registry
 docker_push:
 	docker push $(DOCKER_IMAGE_PATH):prod
 
+# 5) Deploy to Cloud Run with memory + env file
 docker_deploy:
 	gcloud run deploy \
 		--image $(DOCKER_IMAGE_PATH):prod \
 		--memory $(GAR_MEMORY) \
 		--region $(GCP_REGION) \
 		--env-vars-file .env.yaml
+
+#======================#
+#      GCP CLEANUP     #
+#======================#
+
+# Delete the Artifact Registry repository (and all images inside)
+# WARNING: This is destructive.
+delete_artifact_repo:
+	gcloud artifacts repositories delete $(DOCKER_REPO_NAME) \
+	  --location=$(GCP_REGION) \
+	  --quiet
+
+# List Cloud Run services in the configured region (for inspection)
+list_cloud_run_services:
+	gcloud run services list --region=$(GCP_REGION)
+
+# The SERVICE column there is what you should pass as SERVICE_NAME:
+# make delete_cloud_run_service SERVICE_NAME=<SERVICE from list>
+# Delete a Cloud Run service by name
+# Usage: make delete_cloud_run_service SERVICE_NAME=your-service-name
+delete_cloud_run_service:
+	gcloud run services delete $(SERVICE_NAME) \
+	  --region=$(GCP_REGION) \
+	  --quiet
+
+
+#======================#
+#         TESTS        #
+#======================#
+
+test_api_root:
+	pytest \
+	  tests/api/test_endpoints.py::test_root_is_up \
+	  tests/api/test_endpoints.py::test_root_returns_greeting \
+	  --asyncio-mode=strict -W "ignore"
+
+test_api_predict:
+	pytest \
+	tests/api/test_endpoints.py::test_predict_is_up --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_is_dict --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_has_key --asyncio-mode=strict -W "ignore" \
+	tests/api/test_endpoints.py::test_predict_val_is_float --asyncio-mode=strict -W "ignore"
+
+test_api_on_docker:
+	pytest \
+	tests/api/test_docker_endpoints.py --asyncio-mode=strict -W "ignore"
