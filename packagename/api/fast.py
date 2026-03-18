@@ -1,9 +1,9 @@
 # TODO: Import your package, replace this by explicit imports of what you need
-# from packagename.main import predict
+
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from packagename.cf_copilot.utils import load_cashflow_data
 app = FastAPI()
 
 app.add_middleware(
@@ -35,4 +35,13 @@ def get_predict(input_one: float,
             'input_one': input_one,
             'input_two': input_two
         }
+    }
+
+@app.get("/debug-load-data")
+def debug_load_data():
+    df = load_cashflow_data()
+    # simple sanity check response
+    return {
+        "rows": len(df),
+        "cols": list(df.columns),
     }
