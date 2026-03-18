@@ -24,7 +24,7 @@ test_structure:
 #======================#
 
 run_api:
-	uvicorn api.fast:app --reload --port 8000
+	uvicorn packagename.api.fast:app --reload --port 8000
 
 
 #======================#
@@ -114,3 +114,14 @@ docker_deploy:
 		--memory $(GAR_MEMORY) \
 		--region $(GCP_REGION) \
 		--env-vars-file .env.yaml
+
+
+#======================#
+#         TESTS        #
+#======================#
+
+test_api_root:
+	pytest \
+	  tests/api/test_endpoints.py::test_root_is_up \
+	  tests/api/test_endpoints.py::test_root_returns_greeting \
+	  --asyncio-mode=strict -W "ignore"

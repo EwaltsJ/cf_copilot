@@ -18,3 +18,7 @@ pandas==2.2.3
 fastapi
 uvicorn
 kagglehub
+
+# tests
+httpx<0.28
+pytest-asyncio
