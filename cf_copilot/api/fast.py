@@ -1,46 +1,69 @@
-# TODO: Import your package, replace this by explicit imports of what you need
-
-
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from cf_copilot.utils import load_cashflow_data
+import pandas as pd
+from io import BytesIO
+
+from cf_copilot.ml_logic.registry import load_model, predict
+from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, engineer_features
+from cf_copilot.ml_logic.encoders import preprocess
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Endpoint for https://your-domain.com/
+# Load the trained pipeline once at startup
+app.state.pipeline = load_model()
+
+
 @app.get("/")
 def root():
-    return {
-        'message': "Hi, The API is running!"
-    }
+    return {"message": "Hi, The API is running!"}
 
-# Endpoint for https://your-domain.com/predict?input_one=154&input_two=199
-@app.get("/predict")
-def get_predict(input_one: float,
-            input_two: float):
-    # TODO: Do something with your input to work on
-    # i.e. feed it to your model.predict, and return the output
-    # For a dummy version, just return the sum of the two inputs and the original inputs
-    prediction = float(input_one) + float(input_two)
-    return {
-        'prediction': prediction,
-        'inputs': {
-            'input_one': input_one,
-            'input_two': input_two
-        }
-    }
+
+@app.post("/predict")
+async def post_predict(file: UploadFile = File(...)):
+    """Accept a CSV of invoices and return week-bucket predictions.
+
+    The CSV should contain the same columns as the raw invoice data
+    (cust_number, due_in_date, invoice_currency, document_type,
+    total_open_amount, baseline_create_date, cust_payment_terms, etc.).
+    """
+    pipeline = app.state.pipeline
+
+    if pipeline is None:
+        return {"error": "No trained model found. Run train() first."}
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    # Clean and engineer features for the uploaded invoices
+    model_df, _ = data_cleaning(df)
+    current_date = pd.Timestamp.now()
+    featured_df = engineer_features(model_df, model_df, current_date)
+
+    X, _ = preprocess(featured_df)
+
+    results = predict(pipeline, X)
+
+    predictions = []
+    for i in range(len(X)):
+        predictions.append({
+            "week_bucket": int(results["week_bucket"][i]),
+            "probabilities": results["probabilities"][i].tolist(),
+        })
+
+    return {"predictions": predictions}
+
 
 @app.get("/debug-load-data")
 def debug_load_data():
     df = load_cashflow_data()
-    # simple sanity check response
     return {
         "rows": len(df),
         "cols": list(df.columns),
