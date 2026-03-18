@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import kagglehub
+import time
+import tracemalloc
 from kagglehub import KaggleDatasetAdapter
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -202,6 +204,9 @@ def data_cleaning(df):
         'baseline_create_date': 'invoice_sent'}, inplace=True)
 
     # 9. sort the df by date
+    # Ensure date columns are datetime
+    df["invoice_sent"] = pd.to_datetime(df["invoice_sent"], errors="coerce")
+    df["invoice_paid"] = pd.to_datetime(df["invoice_paid"], errors="coerce")
     df = df.sort_values("invoice_sent").reset_index(drop=True)
 
     # 10. create two dfs, one for training one for testing.
@@ -403,3 +408,25 @@ def build_sliding_window_snapshots(df):
     print(big_df["week_bucket"].value_counts().sort_index())
 
     return big_df
+
+def simple_time_and_memory_tracker(method):
+
+    # ### Log Level
+    # 0: Nothing
+    # 1: Print Time and Memory usage of functions
+    LOG_LEVEL = 1
+
+    def method_with_trackers(*args, **kw):
+        ts = time.time()
+        tracemalloc.start()
+        result = method(*args, **kw)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        te = time.time()
+        duration = te - ts
+        if LOG_LEVEL > 0:
+            output = f"{method.__qualname__} executed in {round(duration, 2)} seconds, using up to {round(peak / 1024**2,2)}MB of RAM"
+            print(output)
+        return result
+
+    return method_with_trackers

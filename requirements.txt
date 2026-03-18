@@ -6,6 +6,7 @@ matplotlib
 # Uncomment if you use sklearn
 scikit-learn==1.6.1
 
+
 # Install the correct TensorFlow version
 # Uncomment if you use TensorFlow
 # tensorflow==2.16.2    # For both Intel and Apple silicon
@@ -13,7 +14,7 @@ scikit-learn==1.6.1
 
 # Google Cloud
 # Uncomment if you use Google Cloud Storage
-# google-cloud-storage
+google-cloud-storage
 
 # API
 fastapi
@@ -23,3 +24,7 @@ kagglehub
 # tests
 httpx<0.28
 pytest-asyncio
+
+#web-dev
+streamlit
+requests
