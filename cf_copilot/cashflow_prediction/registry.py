@@ -1,76 +1,51 @@
 import pandas as pd
 import numpy as np
 
-CLASS_NAMES = [1, 2, 3, 4, 5, 6, 7]
-WEEK_CLASSES = [1, 2, 3, 4, 5, 6]
-
 from cf_copilot.ml_logic.registry import predict
 
-def build_prediction_table(
-    base_probas: np.ndarray,
-    invoices_df: pd.DataFrame,
-    # invoice_id_col: str = "invoice_id",
-) -> pd.DataFrame:
+WEEK_CLASSES = [1, 2, 3, 4, 5, 6]
+CLASS_NAMES = [1, 2, 3, 4, 5, 6, 7]
+
+def predict_cashflow(invoices_df: pd.DataFrame, pipeline) -> pd.DataFrame:
+    """End-to-end cashflow forecast from raw invoices.
+
+    Args:
+        invoices_df: raw invoice DataFrame.
+        pipeline: fitted sklearn Pipeline.
+
+    Returns:
+        DataFrame with weekly forecast_cash per bucket.
     """
-    Attach model probabilities to invoice metadata in a clean table.
-    """
-    prob_df = pd.DataFrame(base_probas, columns=[f"p_{c}" for c in CLASS_NAMES])
+    results = predict(pipeline, invoices_df)
 
-    result = invoices_df[["total_open_amount"]].copy()
-    result = result.reset_index(drop=True)
-    prob_df = prob_df.reset_index(drop=True)
+    pred_df = _build_prediction_table(results["probabilities"], invoices_df)
+    pred_df = _add_expected_cash_columns(pred_df)
 
-    result = pd.concat([result, prob_df], axis=1)
-    return result
+    return _aggregate_weekly_forecast(pred_df)
 
-def aggregate_weekly_forecast(
-    pred_cash_df: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Aggregate invoice-level expected cash into one forecast row per week.
-    """
-    rows = []
 
-    for week in WEEK_CLASSES:
-        cash_col = f"expected_cash_{week}"
-        total_cash = round(float(pred_cash_df[cash_col].sum()), 2)
+def _build_prediction_table(probas: np.ndarray, invoices_df: pd.DataFrame) -> pd.DataFrame:
+    """Attach model probabilities to invoice amounts."""
+    prob_df = pd.DataFrame(probas, columns=[f"p_{c}" for c in CLASS_NAMES])
 
-        rows.append(
-            {
-                "week_bucket": week,
-                "forecast_cash": total_cash,
-            }
-        )
+    result = invoices_df[["total_open_amount"]].reset_index(drop=True)
+    return pd.concat([result, prob_df], axis=1)
 
-    return pd.DataFrame(rows)
 
-def add_expected_cash_columns(
-    pred_df: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    For each week bucket, compute expected cash = amount * probability.
-    """
+def _add_expected_cash_columns(pred_df: pd.DataFrame) -> pd.DataFrame:
+    """Compute expected cash = amount * probability for each week."""
     result = pred_df.copy()
-
     for week in WEEK_CLASSES:
-        prob_col = f"p_{week}"
-        cash_col = f"expected_cash_{week}"
-        result[cash_col] = (result["total_open_amount"] * result[prob_col]).round(2)
-
+        result[f"expected_cash_{week}"] = (result["total_open_amount"] * result[f"p_{week}"]).round(2)
     return result
 
 
-def predict_cashflow(
-    invoices_df: pd.DataFrame,
-    pipeline = None,
-) -> pd.DataFrame:
-
-    df = invoices_df
-    predictions = predict(pipeline, df)
-
-    pred_df = build_prediction_table(predictions['probabilities'], df)
-    pred_cash_df = add_expected_cash_columns(pred_df)
-
-    df = aggregate_weekly_forecast(pred_cash_df)
-
-    return df
+def _aggregate_weekly_forecast(pred_df: pd.DataFrame) -> pd.DataFrame:
+    """Sum expected cash across all invoices per week bucket."""
+    return pd.DataFrame([
+        {
+            "week_bucket": week,
+            "forecast_cash": round(float(pred_df[f"expected_cash_{week}"].sum()), 2),
+        }
+        for week in WEEK_CLASSES
+    ])
