@@ -23,8 +23,11 @@ def save_results(metrics : dict) -> None:
     """
     if MODEL_TARGET == "mlflow":
         if metrics is not None:
-            mlflow.log_metrics(metrics)
-        print("✅ Results saved on mlflow")
+            try:
+                mlflow.log_metrics(metrics)
+                print("✅ Results saved on mlflow")
+            except:
+                print("⚠️ Could not log to MLflow")
 
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
@@ -54,10 +57,10 @@ def save_model(model=None) -> None:
     if MODEL_TARGET == "mlflow":
         try:
             print("🌐 Uploading model to MLflow...")
-            mlflow.end_run()
+            #mlflow.end_run()
 
-            with mlflow.start_run():
-                mlflow.sklearn.log_model(
+            #with mlflow.start_run():
+            mlflow.sklearn.log_model(
                     sk_model=model_path,
                     artifact_path="model",
                     registered_model_name=MLFLOW_MODEL_NAME
