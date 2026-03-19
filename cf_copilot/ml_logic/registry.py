@@ -1,16 +1,10 @@
 import os
 import glob
 import time
-import logging
-import requests
-
 import joblib
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
-
-from dotenv import load_dotenv
-load_dotenv()
 
 from cf_copilot.params import (
     LOCAL_REGISTRY_PATH,
@@ -19,30 +13,6 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
 )
-
-logging.getLogger("mlflow").setLevel(logging.INFO)
-
-# ONLY FOR TESTING SSL ISSUES (skip in prod)
-session = requests.Session()
-session.verify = False
-client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI, registry_uri=MLFLOW_TRACKING_URI)
-
-
-def _ensure_experiment():
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    client = MlflowClient()
-
-    exp = client.get_experiment_by_name(MLFLOW_EXPERIMENT)
-
-    if exp is None:
-        client.create_experiment(MLFLOW_EXPERIMENT)
-        print(f"🆕 Created MLflow experiment: {MLFLOW_EXPERIMENT}")
-    elif exp.lifecycle_stage == "deleted":
-        client.restore_experiment(exp.experiment_id)
-        print(f"♻️ Restored deleted experiment: {MLFLOW_EXPERIMENT}")
-
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
-
 
 def save_model(model=None) -> None:
     """Save model locally (joblib) and optionally to MLflow."""
@@ -60,15 +30,13 @@ def save_model(model=None) -> None:
     if MODEL_TARGET == "mlflow":
         try:
             print("🌐 Uploading model to MLflow...")
-            _ensure_experiment()
-            mlflow.end_run()  # safely close any previous run
+            mlflow.end_run()
 
-            with mlflow.start_run(run_name="training_run"):
+            with mlflow.start_run():
                 mlflow.sklearn.log_model(
-                    sk_model=model,
+                    sk_model=model_path,
                     artifact_path="model",
-                    registered_model_name=MLFLOW_MODEL_NAME,
-                    pip_requirements=[],  # skip env capture
+                    registered_model_name=MLFLOW_MODEL_NAME
                 )
 
             print("✅ Model successfully saved to MLflow")
@@ -91,22 +59,24 @@ def load_model(stage: str = "Production"):
             print("❌ No model found in MLflow registry, falling back to local")
             print(e)
 
-    # ---------- Local fallback ----------
-    model_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
-    if not os.path.exists(model_dir):
-        print("❌ No model directory found locally")
+    if MODEL_TARGET == "local":
+        # ---------- Local fallback ----------
+        model_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
+        if not os.path.exists(model_dir):
+            print("❌ No model directory found locally")
+            return None
+
+        model_paths = sorted(glob.glob(os.path.join(model_dir, "*.joblib")))
+        if not model_paths:
+            print("❌ No model found locally")
+            return None
+
+        latest_model_path = model_paths[-1]
+        model = joblib.load(latest_model_path)
+        print(f"✅ Model loaded from {latest_model_path}")
+        return model
+    else:
         return None
-
-    model_paths = sorted(glob.glob(os.path.join(model_dir, "*.joblib")))
-    if not model_paths:
-        print("❌ No model found locally")
-        return None
-
-    latest_model_path = model_paths[-1]
-    model = joblib.load(latest_model_path)
-    print(f"✅ Model loaded from {latest_model_path}")
-    return model
-
 
 def predict(model, X_new) -> dict:
     print("🔮 Generating predictions...")
@@ -114,3 +84,52 @@ def predict(model, X_new) -> dict:
     probas = model.predict_proba(X_new)
     print(f"✅ Predictions made for {len(X_new)} rows")
     return {"week_bucket": preds, "probabilities": probas}
+
+def mlflow_transition_model(current_stage: str, new_stage: str) -> None:
+    """
+    Transition the latest model from the `current_stage` to the
+    `new_stage` and archive the existing model in `new_stage`
+    """
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+    client = MlflowClient()
+
+    version = client.get_latest_versions(name=MLFLOW_MODEL_NAME, stages=[current_stage])
+
+    if not version:
+        print(f"\n❌ No model found with name {MLFLOW_MODEL_NAME} in stage {current_stage}")
+        return None
+
+    client.transition_model_version_stage(
+        name=MLFLOW_MODEL_NAME,
+        version=version[0].version,
+        stage=new_stage,
+        archive_existing_versions=True
+    )
+
+    print(f"✅ Model {MLFLOW_MODEL_NAME} (version {version[0].version}) transitioned from {current_stage} to {new_stage}")
+
+    return None
+
+
+def mlflow_run(func):
+    """
+    Generic function to log params and results to MLflow
+
+    Args:
+        - func (function): Function you want to run within the MLflow run
+        - params (dict, optional): Params to add to the run in MLflow. Defaults to None.
+        - context (str, optional): Param describing the context of the run. Defaults to "Train".
+    """
+    def wrapper(*args, **kwargs):
+        mlflow.end_run()
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(experiment_name=MLFLOW_EXPERIMENT)
+
+        with mlflow.start_run():
+            results = func(*args, **kwargs)
+
+        print("✅ mlflow_run auto-log done")
+
+        return results
+    return wrapper
