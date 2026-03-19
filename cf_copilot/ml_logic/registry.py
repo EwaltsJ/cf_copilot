@@ -91,13 +91,14 @@ def load_model(stage: str = "Production"):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         try:
             model_uri = f"models:/{MLFLOW_MODEL_NAME}/{stage}"
-            model = mlflow.sklearn.load_model(model_uri)
+            mlflow_model = mlflow.sklearn.load_model(model_uri)
             print("✅ Model loaded from MLflow")
+            model = joblib.load(mlflow_model)
             return model
         except Exception as e:
             print("❌ No model found in MLflow registry, falling back to local")
             print(e)
-     if MODEL_TARGET == "gcs":
+    if MODEL_TARGET == "gcs":
         print(Fore.BLUE + "\nLoad latest model from GCS..." + Style.RESET_ALL)
 
         client = storage.Client()
