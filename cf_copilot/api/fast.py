@@ -41,30 +41,7 @@ async def post_predict(file: UploadFile = File(...)):
     contents = await file.read()
     df = pd.read_csv(BytesIO(contents))
 
-    df,_ = data_cleaning(df)
-
-    current_date = pd.Timestamp.now()
-    # TODO This needs to be updated. We will need a way to upload the full initial df,
-    # with the past customer data to be able to calculate historical data.
-    # In a second step the historical-df needs to be updated with the new invoices for future predictions.
-    featured_df = engineer_features(df, df, current_date)
-
-    X, _ = preprocess(featured_df, inference=True)
-
-    results = predict(pipeline, X)
-
-    # Map each class label to its probability per invoice
-    buckets = [int(b) for b in pipeline.classes_]
-
-    predictions = []
-    for i in range(len(X)):
-        predictions.append({
-            "predicted_bucket": int(results["week_bucket"][i]),
-            "bucket_probabilities": {
-                f"week_{b}": round(float(results["probabilities"][i][j]), 4)
-                for j, b in enumerate(buckets)
-            },
-        })
+    return predict(pipeline, df)
 
     return {"predictions": predictions}
 

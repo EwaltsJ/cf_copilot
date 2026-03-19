@@ -58,7 +58,6 @@ def pred(X_new: pd.DataFrame = None):
         return None
 
     results = predict(pipeline, X_new)
-    print(f"Predicted week buckets: {results['week_bucket'][:10]}...")
 
     return results
 
