@@ -23,3 +23,7 @@ kagglehub
 # Tests
 httpx<0.28
 pytest-asyncio
+langchain
+langchain-community
+langchain-google-genai
+chromadb
