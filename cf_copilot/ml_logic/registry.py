@@ -1,17 +1,14 @@
 import os
 import glob
-import pickle
 import time
 import logging
 import requests
 
+import joblib
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
 
-# =========================================================
-# CONFIG & ENV
-# =========================================================
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -20,20 +17,17 @@ from cf_copilot.params import (
     MODEL_TARGET,
     MLFLOW_TRACKING_URI,
     MLFLOW_EXPERIMENT,
-    MLFLOW_MODEL_NAME
+    MLFLOW_MODEL_NAME,
 )
 
 logging.getLogger("mlflow").setLevel(logging.INFO)
 
-# ======= ONLY FOR TESTING SSL ISSUES (skip in prod) =======
+# ONLY FOR TESTING SSL ISSUES (skip in prod)
 session = requests.Session()
 session.verify = False
 client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI, registry_uri=MLFLOW_TRACKING_URI)
-# =========================================================
 
-# =========================================================
-# INTERNAL: Ensure MLflow experiment exists
-# =========================================================
+
 def _ensure_experiment():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     client = MlflowClient()
@@ -50,20 +44,16 @@ def _ensure_experiment():
     mlflow.set_experiment(MLFLOW_EXPERIMENT)
 
 
-# =========================================================
-# SAVE MODEL
-# =========================================================
 def save_model(model=None) -> None:
-    """Save model locally and optionally to MLflow"""
+    """Save model locally (joblib) and optionally to MLflow."""
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     model_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, f"{timestamp}.pkl")
+    model_path = os.path.join(model_dir, f"{timestamp}.joblib")
 
     # ---------- Save locally ----------
     print("💾 Saving model locally...")
-    with open(model_path, "wb") as f:
-        pickle.dump(model, f)
+    joblib.dump(model, model_path, compress=True)
     print(f"✅ Pipeline saved locally to {model_path}")
 
     # ---------- Save to MLflow ----------
@@ -88,11 +78,8 @@ def save_model(model=None) -> None:
             print(e)
 
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
 def load_model(stage: str = "Production"):
-    """Load MLflow model (or latest local fallback)"""
+    """Load MLflow model (or latest local joblib fallback)."""
     if MODEL_TARGET == "mlflow":
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         try:
@@ -110,22 +97,17 @@ def load_model(stage: str = "Production"):
         print("❌ No model directory found locally")
         return None
 
-    model_paths = sorted(glob.glob(os.path.join(model_dir, "*.pkl")))
+    model_paths = sorted(glob.glob(os.path.join(model_dir, "*.joblib")))
     if not model_paths:
         print("❌ No model found locally")
         return None
 
     latest_model_path = model_paths[-1]
-    with open(latest_model_path, "rb") as f:
-        model = pickle.load(f)
-
+    model = joblib.load(latest_model_path)
     print(f"✅ Model loaded from {latest_model_path}")
     return model
 
 
-# =========================================================
-# PREDICT
-# =========================================================
 def predict(model, X_new) -> dict:
     print("🔮 Generating predictions...")
     preds = model.predict(X_new)

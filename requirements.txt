@@ -27,7 +27,7 @@ kagglehub
 # tests
 httpx<0.28
 pytest-asyncio
-
+griffe>=0.44
 # prevent bq 3+ db-dtypes package error when running training from bq
 
 mlflow==2.1.1
