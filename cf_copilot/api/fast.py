@@ -41,7 +41,20 @@ async def post_predict(file: UploadFile = File(...)):
     contents = await file.read()
     df = pd.read_csv(BytesIO(contents))
 
-    return predict(pipeline, df)
+    results = predict(pipeline, df)
+
+    buckets = [int(b) for b in pipeline.classes_]
+
+    predictions = []
+    for i in range(len(results["week_bucket"])):
+        predictions.append({
+            "invoice_id": int(df.iloc[i]["invoice_id"]),
+            "predicted_bucket": int(results["week_bucket"][i]),
+            "bucket_probabilities": {
+                f"week_{b}": round(float(results["probabilities"][i][j]), 4)
+                for j, b in enumerate(buckets)
+            },
+        })
 
     return {"predictions": predictions}
 
