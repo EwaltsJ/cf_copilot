@@ -5,7 +5,7 @@ from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, build_sl
 from cf_copilot.ml_logic.encoders import preprocess
 from cf_copilot.ml_logic.model import initialize_model, train_model, evaluate_model
 from cf_copilot.ml_logic.registry import save_model, load_model, predict
-from cf_copilot.ml_logic.registry import mlflow_run, mlflow_transition_model
+from cf_copilot.ml_logic.registry import mlflow_run, mlflow_transition_model,save_results
 
 @mlflow_run
 def train():
@@ -34,6 +34,9 @@ def train():
 
     # 5. Evaluate
     metrics = evaluate_model(pipeline, X_test, y_test)
+
+    # Save results on the hard drive using taxifare.ml_logic.registry
+    save_results(metrics=dict(metrics))
 
     # 6. Save
     save_model(pipeline)

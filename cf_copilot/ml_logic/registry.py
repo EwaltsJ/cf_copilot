@@ -1,6 +1,7 @@
 import os
 import glob
 import time
+import pickle
 import joblib
 import mlflow
 import mlflow.sklearn
@@ -13,6 +14,29 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
 )
+
+def save_results(metrics : dict) -> None:
+    """
+    Persist params & metrics locally on the hard drive at
+    "{LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle"
+    - (unit 03 only) if MODEL_TARGET='mlflow', also persist them on MLflow
+    """
+    if MODEL_TARGET == "mlflow":
+        if metrics is not None:
+            mlflow.log_metrics(metrics)
+        print("✅ Results saved on mlflow")
+
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
+    # Save metrics locally
+    if metrics is not None:
+        metrics_dir = os.path.join(LOCAL_REGISTRY_PATH, "metrics")
+        os.makedirs(metrics_dir,exist_ok=True)
+        metrics_path = os.path.join(LOCAL_REGISTRY_PATH, "metrics", timestamp + ".pickle")
+        with open(metrics_path, "wb") as file:
+            pickle.dump(metrics, file)
+
+    print("✅ Results saved locally")
 
 def save_model(model=None) -> None:
     """Save model locally (joblib) and optionally to MLflow."""
