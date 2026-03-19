@@ -4,8 +4,8 @@ import pandas as pd
 from io import BytesIO
 
 from cf_copilot.ml_logic.registry import load_model, predict
-from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, engineer_features
-from cf_copilot.ml_logic.encoders import preprocess
+from cf_copilot.ml_logic.data import load_cashflow_data
+from cf_copilot.cashflow_prediction.registry import predict_cashflow
 
 app = FastAPI()
 
@@ -44,20 +44,35 @@ async def post_predict(file: UploadFile = File(...)):
     results = predict(pipeline, df)
 
     buckets = [int(b) for b in pipeline.classes_]
+    bucket_labels = [f"week_{b}" for b in buckets]
 
-    predictions = []
-    for i in range(len(results["week_bucket"])):
-        predictions.append({
+    predictions = [
+        {
             "invoice_id": int(df.iloc[i]["invoice_id"]),
             "predicted_bucket": int(results["week_bucket"][i]),
-            "bucket_probabilities": {
-                f"week_{b}": round(float(results["probabilities"][i][j]), 4)
-                for j, b in enumerate(buckets)
-            },
-        })
+            "bucket_probabilities": dict(zip(bucket_labels, map(lambda p: round(float(p), 4), results["probabilities"][i]))),
+        }
+        for i in range(len(results["week_bucket"]))
+    ]
 
     return {"predictions": predictions}
 
+@app.post("/predict_cashflow")
+async def post_predict_cashflow(file: UploadFile = File(...)):
+    """Accept a CSV of invoices and return cashflow-forecast for the upcoming 6 weeks.
+
+    The CSV should contain the same columns as the raw invoice data
+    (cust_number, due_in_date, invoice_currency, document_type,
+    total_open_amount, baseline_create_date, cust_payment_terms, etc.).
+    """
+    pipeline = app.state.pipeline
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    weekly_forecast_df = predict_cashflow(df, pipeline)
+
+    return weekly_forecast_df.to_dict(orient="records")
 
 @app.get("/debug-load-data")
 def debug_load_data():
