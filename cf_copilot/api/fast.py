@@ -2,12 +2,24 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from io import BytesIO
+from contextlib import asynccontextmanager
 
 from cf_copilot.ml_logic.registry import load_model, predict
-from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, engineer_features
-from cf_copilot.ml_logic.encoders import preprocess
+from cf_copilot.ml_logic.data import load_cashflow_data
+from cf_copilot.cashflow_prediction.registry import predict_cashflow
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app):
+    """Load model once the server is running"""
+    try:
+        app.state.pipeline = load_model()
+    except Exception as e:
+        print(f"⚠️  Model load failed at startup: {e}")
+        app.state.pipeline = None
+    yield
+    # Shutdown (nothing to clean up)
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,9 +29,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the model after the server has started (not at import time)
-app.state.pipeline = load_model()
-
 @app.get("/")
 def root():
     return {"message": "Hi, The API is running!"}
@@ -27,12 +36,7 @@ def root():
 
 @app.post("/predict")
 async def post_predict(file: UploadFile = File(...)):
-    """Accept a CSV of invoices and return week-bucket predictions.
-
-    The CSV should contain the same columns as the raw invoice data
-    (cust_number, due_in_date, invoice_currency, document_type,
-    total_open_amount, baseline_create_date, cust_payment_terms, etc.).
-    """
+    """Return per-invoice week-bucket predictions with probabilities."""
     pipeline = app.state.pipeline
 
     if pipeline is None:
@@ -41,38 +45,43 @@ async def post_predict(file: UploadFile = File(...)):
     contents = await file.read()
     df = pd.read_csv(BytesIO(contents))
 
-    df,_ = data_cleaning(df)
+    results = predict(pipeline, df)
 
-    current_date = pd.Timestamp.now()
-    # TODO This needs to be updated. We will need a way to upload the full initial df,
-    # with the past customer data to be able to calculate historical data.
-    # In a second step the historical-df needs to be updated with the new invoices for future predictions.
-    featured_df = engineer_features(df, df, current_date)
-
-    X, _ = preprocess(featured_df, inference=True)
-
-    results = predict(pipeline, X)
-
-    # Map each class label to its probability per invoice
     buckets = [int(b) for b in pipeline.classes_]
+    bucket_labels = [f"week_{b}" for b in buckets]
 
-    predictions = []
-    for i in range(len(X)):
-        predictions.append({
+    predictions = [
+        {
+            "invoice_id": int(df.iloc[i]["invoice_id"]),
             "predicted_bucket": int(results["week_bucket"][i]),
-            "bucket_probabilities": {
-                f"week_{b}": round(float(results["probabilities"][i][j]), 4)
-                for j, b in enumerate(buckets)
-            },
-        })
+            "bucket_probabilities": dict(zip(
+                bucket_labels,
+                [round(float(p), 4) for p in results["probabilities"][i]],
+            )),
+        }
+        for i in range(len(results["week_bucket"]))
+    ]
 
     return {"predictions": predictions}
+
+
+@app.post("/predict_cashflow")
+async def post_predict_cashflow(file: UploadFile = File(...)):
+    """Return aggregated weekly cashflow forecast."""
+    pipeline = app.state.pipeline
+
+    if pipeline is None:
+        return {"error": "No trained model found. Run train() first."}
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    weekly_forecast_df = predict_cashflow(df, pipeline)
+
+    return weekly_forecast_df.to_dict(orient="records")
 
 
 @app.get("/debug-load-data")
 def debug_load_data():
     df = load_cashflow_data()
-    return {
-        "rows": len(df),
-        "cols": list(df.columns),
-    }
+    return {"rows": len(df), "cols": list(df.columns)}
