@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from io import BytesIO
@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from cf_copilot.ml_logic.registry import load_model, predict
 from cf_copilot.ml_logic.data import load_cashflow_data
 from cf_copilot.cashflow_prediction.registry import predict_cashflow
+from cf_copilot.collection_ranking.invoices_ranker import get_priority_invoices
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -79,6 +81,30 @@ async def post_predict_cashflow(file: UploadFile = File(...)):
     weekly_forecast_df = predict_cashflow(df, pipeline)
 
     return weekly_forecast_df.to_dict(orient="records")
+
+
+@app.post("/prioritise_invoices")
+async def post_get_priority_invoices(
+    file: UploadFile = File(...),
+    current_date: str = Form(...)
+):
+    """Return top 10 risky invoices to prioritise for collection."""
+    pipeline = app.state.pipeline
+
+    if pipeline is None:
+        return {"error": "No trained model found. Run train() first."}
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    try:
+        current_date_parsed = pd.to_datetime(current_date)
+    except Exception:
+        return {"error": "Invalid current date format. Use YYYY-MM-DD"}
+
+    priority_invoices_df = get_priority_invoices(df, pipeline, current_date_parsed)
+
+    return priority_invoices_df.to_dict(orient="records")
 
 
 @app.get("/debug-load-data")
