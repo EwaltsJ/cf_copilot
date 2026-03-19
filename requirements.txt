@@ -1,26 +1,25 @@
-# data science
+# Data science
 numpy
 pandas
 matplotlib
 colorama
-# Uncomment if you use sklearn
-scikit-learn
-
-# Install the correct TensorFlow version
-# Uncomment if you use TensorFlow
-# tensorflow==2.16.2    # For both Intel and Apple silicon
-# keras==3.8.0
+scikit-learn==1.6.1
+joblib
 
 # Google Cloud
-# Uncomment if you use Google Cloud Storage
 google-cloud-storage
+
+# Experiment tracking
 mlflow
 
 # API
 fastapi
 uvicorn
+python-multipart
+
+# Data
 kagglehub
 
-# tests
+# Tests
 httpx<0.28
 pytest-asyncio
