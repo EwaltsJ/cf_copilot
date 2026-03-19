@@ -17,9 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the trained pipeline once at startup
+# Load the model after the server has started (not at import time)
 app.state.pipeline = load_model()
-
 
 @app.get("/")
 def root():
@@ -42,15 +41,19 @@ async def post_predict(file: UploadFile = File(...)):
     contents = await file.read()
     df = pd.read_csv(BytesIO(contents))
 
-    # Clean and engineer features for the uploaded invoices
-    model_df, _ = data_cleaning(df)
+    df,_ = data_cleaning(df)
+
     current_date = pd.Timestamp.now()
-    featured_df = engineer_features(model_df, model_df, current_date)
+    # TODO This needs to be updated. We will need a way to upload the full initial df,
+    # with the past customer data to be able to calculate historical data.
+    # In a second step the historical-df needs to be updated with the new invoices for future predictions.
+    featured_df = engineer_features(df, df, current_date)
 
     X, _ = preprocess(featured_df, inference=True)
 
     results = predict(pipeline, X)
 
+    # Map each class label to its probability per invoice
     buckets = [int(b) for b in pipeline.classes_]
 
     predictions = []
