@@ -1,47 +1,87 @@
-# TODO: Import your package, replace this by explicit imports of what you need
-
-
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from cf_copilot.utils import load_cashflow_data
-app = FastAPI()
+import pandas as pd
+from io import BytesIO
+from contextlib import asynccontextmanager
+
+from cf_copilot.ml_logic.registry import load_model, predict
+from cf_copilot.ml_logic.data import load_cashflow_data
+from cf_copilot.cashflow_prediction.registry import predict_cashflow
+
+@asynccontextmanager
+async def lifespan(app):
+    """Load model once the server is running"""
+    try:
+        app.state.pipeline = load_model()
+    except Exception as e:
+        print(f"⚠️  Model load failed at startup: {e}")
+        app.state.pipeline = None
+    yield
+    # Shutdown (nothing to clean up)
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Endpoint for https://your-domain.com/
 @app.get("/")
 def root():
-    return {
-        'message': "Hi, The API is running!"
-    }
+    return {"message": "Hi, The API is running!"}
 
-# Endpoint for https://your-domain.com/predict?input_one=154&input_two=199
-@app.get("/predict")
-def get_predict(input_one: float,
-            input_two: float):
-    # TODO: Do something with your input to work on
-    # i.e. feed it to your model.predict, and return the output
-    # For a dummy version, just return the sum of the two inputs and the original inputs
-    prediction = float(input_one) + float(input_two)
-    return {
-        'prediction': prediction,
-        'inputs': {
-            'input_one': input_one,
-            'input_two': input_two
+
+@app.post("/predict")
+async def post_predict(file: UploadFile = File(...)):
+    """Return per-invoice week-bucket predictions with probabilities."""
+    pipeline = app.state.pipeline
+
+    if pipeline is None:
+        return {"error": "No trained model found. Run train() first."}
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    results = predict(pipeline, df)
+
+    buckets = [int(b) for b in pipeline.classes_]
+    bucket_labels = [f"week_{b}" for b in buckets]
+
+    predictions = [
+        {
+            "invoice_id": int(df.iloc[i]["invoice_id"]),
+            "predicted_bucket": int(results["week_bucket"][i]),
+            "bucket_probabilities": dict(zip(
+                bucket_labels,
+                [round(float(p), 4) for p in results["probabilities"][i]],
+            )),
         }
-    }
+        for i in range(len(results["week_bucket"]))
+    ]
+
+    return {"predictions": predictions}
+
+
+@app.post("/predict_cashflow")
+async def post_predict_cashflow(file: UploadFile = File(...)):
+    """Return aggregated weekly cashflow forecast."""
+    pipeline = app.state.pipeline
+
+    if pipeline is None:
+        return {"error": "No trained model found. Run train() first."}
+
+    contents = await file.read()
+    df = pd.read_csv(BytesIO(contents))
+
+    weekly_forecast_df = predict_cashflow(df, pipeline)
+
+    return weekly_forecast_df.to_dict(orient="records")
+
 
 @app.get("/debug-load-data")
 def debug_load_data():
     df = load_cashflow_data()
-    # simple sanity check response
-    return {
-        "rows": len(df),
-        "cols": list(df.columns),
-    }
+    return {"rows": len(df), "cols": list(df.columns)}

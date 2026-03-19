@@ -6,6 +6,9 @@ import joblib
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
+import pandas as pd
+from colorama import Fore, Style
+from google.cloud import storage
 
 from cf_copilot.params import (
     LOCAL_REGISTRY_PATH,
@@ -14,6 +17,9 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
 )
+from cf_copilot.params import LOCAL_REGISTRY_PATH, MODEL_TARGET, GCS_BUCKET_NAME, GCS_MODEL_PREFIX
+from cf_copilot.ml_logic.data import data_cleaning, engineer_features
+from cf_copilot.ml_logic.encoders import preprocess
 
 def save_results(metrics : dict) -> None:
     """
@@ -42,16 +48,22 @@ def save_results(metrics : dict) -> None:
     print("✅ Results saved locally")
 
 def save_model(model=None) -> None:
-    """Save model locally (joblib) and optionally to MLflow."""
+    """Save the fitted pipeline locally, and optionally to GCS."""
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    model_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
-    os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, f"{timestamp}.joblib")
+    model_filename = f"{timestamp}.joblib"
+    model_path = os.path.join(LOCAL_REGISTRY_PATH, "models", model_filename)
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
-    # ---------- Save locally ----------
-    print("💾 Saving model locally...")
-    joblib.dump(model, model_path, compress=True)
-    print(f"✅ Pipeline saved locally to {model_path}")
+    joblib.dump(model, model_path, compress=3)
+
+    print("✅ Model saved locally")
+
+    if MODEL_TARGET == "gcs":
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(f"{GCS_MODEL_PREFIX}{model_filename}")
+        blob.upload_from_filename(model_path)
+        print(f"✅ Model saved to GCS: gs://{GCS_BUCKET_NAME}/{GCS_MODEL_PREFIX}{model_filename}")
 
     # ---------- Save to MLflow ----------
     if MODEL_TARGET == "mlflow":
@@ -85,7 +97,26 @@ def load_model(stage: str = "Production"):
         except Exception as e:
             print("❌ No model found in MLflow registry, falling back to local")
             print(e)
+     if MODEL_TARGET == "gcs":
+        print(Fore.BLUE + "\nLoad latest model from GCS..." + Style.RESET_ALL)
 
+        client = storage.Client()
+        blobs = list(client.bucket(GCS_BUCKET_NAME).list_blobs(prefix=GCS_MODEL_PREFIX))
+        model_blobs = [b for b in blobs if b.name.endswith(".joblib")]
+
+        if not model_blobs:
+            print(f"❌ No model found in gs://{GCS_BUCKET_NAME}/{GCS_MODEL_PREFIX}")
+            return None
+
+        latest_blob = max(model_blobs, key=lambda b: b.updated)
+        local_tmp = os.path.join(LOCAL_REGISTRY_PATH, "models", "latest.joblib")
+        os.makedirs(os.path.dirname(local_tmp), exist_ok=True)
+        latest_blob.download_to_filename(local_tmp)
+
+        model = joblib.load(local_tmp)
+
+        print(f"✅ Model loaded from gs://{GCS_BUCKET_NAME}/{latest_blob.name}")
+        return model
     if MODEL_TARGET == "local":
         # ---------- Local fallback ----------
         model_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
@@ -104,13 +135,6 @@ def load_model(stage: str = "Production"):
         return model
     else:
         return None
-
-def predict(model, X_new) -> dict:
-    print("🔮 Generating predictions...")
-    preds = model.predict(X_new)
-    probas = model.predict_proba(X_new)
-    print(f"✅ Predictions made for {len(X_new)} rows")
-    return {"week_bucket": preds, "probabilities": probas}
 
 def mlflow_transition_model(current_stage: str, new_stage: str) -> None:
     """
@@ -138,7 +162,6 @@ def mlflow_transition_model(current_stage: str, new_stage: str) -> None:
 
     return None
 
-
 def mlflow_run(func):
     """
     Generic function to log params and results to MLflow
@@ -160,3 +183,33 @@ def mlflow_run(func):
 
         return results
     return wrapper
+
+def prepare_features(df: pd.DataFrame) -> tuple:
+    """Clean raw invoice data and engineer features for prediction.
+
+    Returns:
+        Tuple of (X, cleaned_df) where X is the feature matrix
+        and cleaned_df is the DataFrame after cleaning.
+    """
+    cleaned_df, _ = data_cleaning(df)
+    current_date = pd.Timestamp.now()
+    # TODO: Accept a historical df for customer behaviour features
+    featured_df = engineer_features(cleaned_df, cleaned_df, current_date)
+    X, _ = preprocess(featured_df, inference=True)
+    return X, cleaned_df
+
+
+def predict(model, df: pd.DataFrame) -> dict:
+    """Clean, engineer features, and return predictions.
+
+    Args:
+        model: a fitted sklearn Pipeline.
+        df: raw invoice DataFrame.
+
+    Returns:
+        A dict with 'week_bucket' (predictions) and 'probabilities'.
+    """
+    X, _ = prepare_features(df)
+    preds = model.predict(X)
+    probas = model.predict_proba(X)
+    return {"week_bucket": preds, "probabilities": probas}

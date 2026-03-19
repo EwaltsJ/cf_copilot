@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+.git
+.env
+notebooks/
+raw_data/
+*.egg-info

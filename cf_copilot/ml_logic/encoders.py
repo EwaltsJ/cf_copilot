@@ -12,25 +12,27 @@ CATEGORICAL_FEATURES = [
     "invoice_currency", "document_type", "cust_payment_terms",
 ]
 
-
-def preprocess(df: pd.DataFrame) -> tuple:
+def preprocess(df: pd.DataFrame, inference: bool = False) -> tuple:
     """Preprocess a DataFrame for model training or inference.
 
-    Removes rows without targets, imputes missing values in customer
-    history features, and splits into feature matrix and target vector.
-    Identifier columns, date columns, and leaky columns are excluded.
+    Imputes missing values in customer history features and splits into
+    feature matrix and (optionally) target vector. Identifier columns,
+    date columns, and leaky columns are excluded.
 
     Args:
-        df: pandas DataFrame containing invoice-level records with at least
-            'week_bucket', 'customer_avg_delay', 'late_payment_ratio',
-            and 'days_since_last_invoice'.
+        df: pandas DataFrame containing invoice-level records.
+        inference: if True, skips dropping rows without a target and
+                   returns y as None. Set this when predicting on new
+                   invoices that have no 'week_bucket' column yet.
 
     Returns:
         A tuple (X, y) where X is a DataFrame of feature columns and y is
-        a Series of 'week_bucket' target labels.
+        a Series of 'week_bucket' target labels (or None during inference).
     """
     df = df.copy()
-    df = df.dropna(subset=["week_bucket"])
+
+    if not inference:
+        df = df.dropna(subset=["week_bucket"])
 
     df["customer_avg_delay"] = df["customer_avg_delay"].fillna(0)
     df["late_payment_ratio"] = df["late_payment_ratio"].fillna(0)
@@ -43,6 +45,6 @@ def preprocess(df: pd.DataFrame) -> tuple:
     feature_cols = [c for c in df.columns if c not in drop_cols]
 
     X = df[feature_cols]
-    y = df["week_bucket"]
+    y = df["week_bucket"] if "week_bucket" in df.columns and not inference else None
 
     return X, y
