@@ -16,8 +16,9 @@ from cf_copilot.params import (
     MLFLOW_TRACKING_URI,
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
+    GCS_BUCKET_NAME,
+    GCS_MODEL_PREFIX
 )
-from cf_copilot.params import LOCAL_REGISTRY_PATH, MODEL_TARGET, GCS_BUCKET_NAME, GCS_MODEL_PREFIX
 from cf_copilot.ml_logic.data import data_cleaning, engineer_features
 from cf_copilot.ml_logic.encoders import preprocess
 
