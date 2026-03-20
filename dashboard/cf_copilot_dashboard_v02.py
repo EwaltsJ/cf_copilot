@@ -5,6 +5,7 @@ Cash Flow Copilot — Streamlit Dashboard
 New design: Hero with animated waves → 6-card grid → CTA → 6-step flow
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,6 +13,8 @@ import requests
 from datetime import datetime
 from io import BytesIO
 import plotly.graph_objects as go
+
+API_URL = os.environ.get("API_URL", "http://localhost:8080")
 
 st.set_page_config(
     page_title="Cash Flow Copilot",
@@ -334,8 +337,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-
-API_URL = "http://localhost:8000"
 
 for key, default in {
     "df": None, "uploaded_bytes": None,
