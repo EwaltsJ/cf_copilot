@@ -3,6 +3,9 @@ import pandas as pd
 from pathlib import Path
 import kagglehub
 from kagglehub import KaggleDatasetAdapter
+import io
+import shutil
+from google.cloud import storage as gcs_storage
 
 def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
     """Load invoice dataset from local raw_data folder, or download from Kaggle.
@@ -78,7 +81,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
         df[c] = df[c].astype(str)
 
     # Select and rename columns
-    df = df[['cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
+    df = df[['doc_id','cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
              'document type', 'total_open_amount', 'baseline_create_date',
              'cust_payment_terms', 'clear_date']]
 
@@ -231,3 +234,177 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
     print(big_df["week_bucket"].value_counts().sort_index())
 
     return big_df
+
+def upload_historical_data(
+    local_csv_path: str = None,
+    model_target: str = "local",
+    bucket_name: str = None,
+    gcs_path: str = None,
+    local_historical_path: str = None,
+) -> None:
+    """Upload local model_df.csv to GCS as the historical data seed.
+
+    Args:
+        local_csv_path: path to source CSV. Defaults to raw_data/model_df.csv.
+        model_target: 'gcs' or 'local'.
+        bucket_name: GCS bucket name.
+        gcs_path: blob path inside the bucket.
+        local_historical_path: local destination path if model_target != 'gcs'.
+    """
+    if local_csv_path is None:
+        base_dir = Path(__file__).resolve().parents[2]
+        local_csv_path = base_dir / "raw_data" / "model_df.csv"
+
+    local_path = Path(local_csv_path)
+    if not local_path.is_file():
+        raise FileNotFoundError(
+            f"Source file not found at {local_path}. "
+            "Run data_cleaning() first to generate model_df.csv."
+        )
+
+    if model_target != "gcs":
+        dest = Path(local_historical_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(local_path, dest)
+        print(f"✅ Historical data copied locally to {dest}")
+        return
+
+    client = gcs_storage.Client()
+    blob = client.bucket(bucket_name).blob(gcs_path)
+    blob.upload_from_filename(str(local_path), content_type="text/csv")
+    print(f"✅ Uploaded {local_path} → gs://{bucket_name}/{gcs_path}")
+
+
+def load_historical_data(
+    model_target: str = "local",
+    bucket_name: str = None,
+    gcs_path: str = None,
+    local_historical_path: str = None,
+) -> pd.DataFrame:
+    """Load the full historical invoice dataset for feature engineering.
+
+    Args:
+        model_target: 'gcs' or 'local'.
+        bucket_name: GCS bucket name.
+        gcs_path: blob path inside the bucket.
+        local_historical_path: local CSV path if model_target != 'gcs'.
+
+    Returns:
+        DataFrame with full historical invoice records.
+    """
+    date_cols = ["invoice_sent", "due_in_date", "invoice_paid"]
+
+    if model_target == "gcs":
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(gcs_path)
+        data = blob.download_as_bytes()
+        df = pd.read_csv(io.BytesIO(data), parse_dates=date_cols)
+        print(f"✅ Historical data loaded from GCS ({len(df)} rows)")
+        return df
+
+    local_path = Path(local_historical_path)
+    if not local_path.is_file():
+        raise FileNotFoundError(
+            f"No historical data at {local_path}. "
+            "Run upload_historical_data() first."
+        )
+    df = pd.read_csv(local_path, parse_dates=date_cols)
+    print(f"✅ Historical data loaded locally ({len(df)} rows) from {local_path}")
+    return df
+
+
+def append_to_historical_data(
+    new_df: pd.DataFrame,
+    model_target: str = "local",
+    bucket_name: str = None,
+    gcs_path: str = None,
+    local_historical_path: str = None,
+) -> None:
+    """Append new invoices to historical dataset, deduplicating by invoice_id.
+
+    Args:
+        new_df: DataFrame of new invoices — same schema as historical data.
+        model_target: 'gcs' or 'local'.
+        bucket_name: GCS bucket name.
+        gcs_path: blob path inside the bucket.
+        local_historical_path: local CSV path if model_target != 'gcs'.
+    """
+    kwargs = dict(
+        model_target=model_target,
+        bucket_name=bucket_name,
+        gcs_path=gcs_path,
+        local_historical_path=local_historical_path,
+    )
+
+    try:
+        historical_df = load_historical_data(**kwargs)
+    except FileNotFoundError:
+        print("⚠️  No historical data found — initializing from new data.")
+        historical_df = pd.DataFrame()
+
+    combined = pd.concat([historical_df, new_df], ignore_index=True)
+
+    if "doc_id" in combined.columns:
+        before = len(combined)
+        combined = combined.drop_duplicates(subset=["doc_id"], keep="last")
+        dropped = before - len(combined)
+        if dropped:
+            print(f"⚠️  Dropped {dropped} duplicate doc_id rows")
+    else:
+        print("⚠️  doc_id column missing — deduplication will not work")
+
+    print(f"✅ Historical data updated: {len(combined)} total rows")
+
+    if model_target == "gcs":
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(gcs_path)
+        blob.upload_from_string(
+            combined.to_csv(index=False).encode("utf-8"),
+            content_type="text/csv"
+        )
+        print(f"✅ Written back to gs://{bucket_name}/{gcs_path}")
+        return
+
+    local_path = Path(local_historical_path)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.to_csv(local_path, index=False)
+    print(f"✅ Written back locally to {local_path}")
+
+
+def verify_historical_data(
+    model_target: str = "local",
+    bucket_name: str = None,
+    gcs_path: str = None,
+    local_historical_path: str = None,
+) -> None:
+    """Verify historical data is accessible and structurally correct.
+
+    Args:
+        model_target: 'gcs' or 'local'.
+        bucket_name: GCS bucket name.
+        gcs_path: blob path inside the bucket.
+        local_historical_path: local CSV path if model_target != 'gcs'.
+    """
+    df = load_historical_data(
+        model_target=model_target,
+        bucket_name=bucket_name,
+        gcs_path=gcs_path,
+        local_historical_path=local_historical_path,
+    )
+
+    print("\n--- Historical Data Verification ---")
+    print(f"Rows             : {len(df)}")
+    print(f"Columns          : {list(df.columns)}")
+    print(f"invoice_sent     : {df['invoice_sent'].min().date()} → {df['invoice_sent'].max().date()}")
+    print(f"Unique customers : {df['cust_number'].nunique()}")
+
+    if "doc_id" in df.columns:
+        dupes = df["doc_id"].duplicated().sum()
+        print(f"Duplicate doc_id values : {dupes} ({'⚠️ fix needed' if dupes else '✅ clean'})")
+    else:
+        print("⚠️  doc_id column missing — deduplication will not work")
+
+
+    print("\nSample rows:")
+    print(df.head(3).to_string())
+    print("------------------------------------\n")

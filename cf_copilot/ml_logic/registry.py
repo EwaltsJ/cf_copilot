@@ -17,9 +17,19 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
     GCS_BUCKET_NAME,
-    GCS_MODEL_PREFIX
+    GCS_MODEL_PREFIX,
+    GCS_HISTORICAL_DATA_PATH,
+    LOCAL_HISTORICAL_DATA_PATH,
 )
-from cf_copilot.ml_logic.data import data_cleaning, engineer_features
+from cf_copilot.ml_logic.data import (
+    data_cleaning,
+    engineer_features,
+    load_historical_data,
+    append_to_historical_data,
+    upload_historical_data,
+    verify_historical_data,
+)
+
 from cf_copilot.ml_logic.encoders import preprocess
 
 def save_results(metrics : dict) -> None:
@@ -195,8 +205,14 @@ def prepare_features(df: pd.DataFrame) -> tuple:
     """
     cleaned_df, _ = data_cleaning(df)
     current_date = pd.Timestamp.now()
-    # TODO: Accept a historical df for customer behaviour features
-    featured_df = engineer_features(cleaned_df, cleaned_df, current_date)
+    # get historical data
+    historical_df = load_historical_data(
+        model_target=MODEL_TARGET,
+        bucket_name=GCS_BUCKET_NAME,
+        gcs_path=GCS_HISTORICAL_DATA_PATH,
+        local_historical_path=LOCAL_HISTORICAL_DATA_PATH,
+    )
+    featured_df = engineer_features(cleaned_df, historical_df, current_date)
     X, _ = preprocess(featured_df, inference=True)
     return X, cleaned_df
 
@@ -214,4 +230,32 @@ def predict(model, df: pd.DataFrame) -> dict:
     X, _ = prepare_features(df)
     preds = model.predict(X)
     probas = model.predict_proba(X)
+
+    # updating historical data
+    cleaned_df = cleaned_df.copy()
+    cleaned_df["predicted_week_bucket"] = preds
+
+    append_to_historical_data(
+        cleaned_df,
+        model_target=MODEL_TARGET,
+        bucket_name=GCS_BUCKET_NAME,
+        gcs_path=GCS_HISTORICAL_DATA_PATH,
+        local_historical_path=LOCAL_HISTORICAL_DATA_PATH,
+    )
     return {"week_bucket": preds, "probabilities": probas}
+
+
+def seed_historical_data() -> None:
+    """Upload model_df.csv to GCS and verify. Called at end of train()."""
+    upload_historical_data(
+        model_target=MODEL_TARGET,
+        bucket_name=GCS_BUCKET_NAME,
+        gcs_path=GCS_HISTORICAL_DATA_PATH,
+        local_historical_path=LOCAL_HISTORICAL_DATA_PATH,
+    )
+    verify_historical_data(
+        model_target=MODEL_TARGET,
+        bucket_name=GCS_BUCKET_NAME,
+        gcs_path=GCS_HISTORICAL_DATA_PATH,
+        local_historical_path=LOCAL_HISTORICAL_DATA_PATH,
+    )
