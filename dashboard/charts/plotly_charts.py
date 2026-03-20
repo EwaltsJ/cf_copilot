@@ -43,7 +43,7 @@ def build_cashflow_chart(df):
             gridcolor="rgba(255,255,255,0.04)",
             tickfont=dict(color="#6b7fa3"),
             title="Amount ($M)",
-            titlefont=dict(color="#6b7fa3"),
+            title_font=dict(color="#6b7fa3"),
         ),
         margin=dict(l=0, r=0, t=10, b=0),
         height=320,

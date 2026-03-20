@@ -1,8 +1,9 @@
 """
 constants.py — Shared constants and configuration for Cash Flow Copilot.
 """
+import os
 
-API_URL = "http://localhost:8000"
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 RISK_LABELS = {
     1: "Low",
