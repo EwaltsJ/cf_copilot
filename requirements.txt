@@ -1,33 +1,32 @@
 # Data science
-numpy
-pandas
-matplotlib
-colorama
+numpy~=1.26  # capped by mlflow requiring numpy<2
+pandas~=2.3
+matplotlib~=3.10
+colorama~=0.4.6
 scikit-learn==1.6.1
-joblib
+joblib~=1.5
 
 # Google Cloud
-google-cloud-storage
+google-cloud-storage~=3.10
 
 # API
-fastapi
-uvicorn
-python-multipart
+fastapi~=0.135
+uvicorn~=0.42
+python-multipart~=0.0.22
 
 # Data
-kagglehub
+kagglehub~=1.0
 
 # Tests
-httpx<0.28
+httpx
 pytest-asyncio
 
 # prevent bq 3+ db-dtypes package error when running training from bq
-mlflow==2.1.1
-prefect==2.19.2
+mlflow==2.16.0
 
-python-dotenv
-psycopg2-binary
-langchain
-langchain-community
-langchain-google-genai
-chromadb
+python-dotenv~=1.2
+psycopg2-binary~=2.9
+langchain~=1.2
+langchain-community~=0.4
+langchain-google-genai~=4.2
+chromadb~=1.5
