@@ -59,6 +59,8 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
 
+    if "cust_number" in df.columns:
+        df["cust_number"] = df["cust_number"].astype(str)
     # Drop invalid invoice ids
     df = df.dropna(subset=["invoice_id"]).copy()
     df["invoice_id"] = pd.to_numeric(df["invoice_id"], errors="coerce")
@@ -284,9 +286,9 @@ def load_historical_data() -> pd.DataFrame:
             "Run upload_historical_data() first."
         )
     df = pd.read_csv(local_path, parse_dates=date_cols)
+    if "cust_number" in df.columns:
+        df["cust_number"] = df["cust_number"].astype(str)
     print(f"✅ Historical data loaded locally ({len(df)} rows) from {local_path}")
-    return df
-
     return df
 
 
