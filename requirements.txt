@@ -1,38 +1,44 @@
 # Data science
-numpy
-pandas
-matplotlib
-colorama
+numpy~=2.2
+pandas~=2.3
+matplotlib~=3.10
+colorama~=0.4.6
 scikit-learn==1.6.1
-joblib
+joblib~=1.5
 
 # Google Cloud
-google-cloud-storage
-
-# Experiment tracking
-mlflow
+google-cloud-storage~=3.10
 
 # API
-fastapi
-uvicorn
-python-multipart
+fastapi~=0.135
+uvicorn~=0.42
+python-multipart~=0.0.22
 
 # Data
-kagglehub
+kagglehub~=1.0
 
 # Tests
-httpx<0.28
-pytest-asyncio
-langchain
-langchain-community
-langchain-google-genai
-chromadb
+httpx~=0.28
+pytest-asyncio~=1.3
+pytest~=9.0
+
+# ML tracking
+mlflow~=3.10
+
+# LangChain / RAG
+langchain~=1.2
+langchain-community~=0.4
+langchain-google-genai~=4.2
+chromadb~=1.5
+
+# Misc
+python-dotenv~=1.2
+psycopg2-binary~=2.9
 
 # Dashboard
-streamlit
-plotly
-requests
-langchain-groq
-langchain-chroma
-langchain-text-splitters
-python-dotenv
+streamlit~=1.55
+plotly~=6.6
+requests~=2.32
+langchain-chroma~=1.1
+langchain-groq~=1.1
+langchain-text-splitters~=1.1

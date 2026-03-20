@@ -173,3 +173,14 @@ test_api_predict:
 test_api_on_docker:
 	pytest \
 	tests/api/test_docker_endpoints.py --asyncio-mode=strict -W "ignore"
+
+test_mlflow_config:
+	@pytest \
+	tests/api/test_mlflow.py::TestMlflow::test_model_target_is_mlflow \
+	tests/api/test_mlflow.py::TestMlflow::test_mlflow_experiment_is_not_null \
+	tests/api/test_mlflow.py::TestMlflow::test_mlflow_model_name_is_not_null
+
+test_prefect_config:
+	@pytest \
+	tests/lifecycle/test_prefect.py::TestPrefect::test_prefect_flow_name_is_not_null \
+	tests/lifecycle/test_prefect.py::TestPrefect::test_prefect_log_level_is_warning

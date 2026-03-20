@@ -1,0 +1,29 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_key.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/run/secrets/gcp_key.json:ro
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    env_file: .env
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp_key.json
+      - API_URL=http://api:8080
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/run/secrets/gcp_key.json:ro
+    depends_on:
+      - api
+    restart: unless-stopped

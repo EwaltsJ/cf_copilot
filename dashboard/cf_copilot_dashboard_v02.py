@@ -5,6 +5,7 @@ Cash Flow Copilot — Streamlit Dashboard
 New design: Hero with animated waves → 6-card grid → CTA → 6-step flow
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,6 +13,8 @@ import requests
 from datetime import datetime
 from io import BytesIO
 import plotly.graph_objects as go
+
+API_URL = os.environ.get("API_URL", "http://localhost:8080")
 
 st.set_page_config(
     page_title="Cash Flow Copilot",
@@ -335,8 +338,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-API_URL = "http://localhost:8000"
-
 for key, default in {
     "df": None, "uploaded_bytes": None,
     "predictions_df": None, "weekly_forecast": None,
@@ -431,7 +432,7 @@ def build_cashflow_chart(df):
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#6b7fa3")),
         xaxis=dict(gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#6b7fa3")),
         yaxis=dict(gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#6b7fa3"),
-                   title="Amount ($M)", titlefont=dict(color="#6b7fa3")),
+           title=dict(text="Amount ($M)", font=dict(color="#6b7fa3"))),
         margin=dict(l=0, r=0, t=10, b=0), height=300,
     )
     return fig
