@@ -40,6 +40,8 @@ An `sklearn` Pipeline chains a `ColumnTransformer` (median imputation for numeri
 │   ├── api/
 │   │   ├── __init__.py
 │   │   └── fast.py              # FastAPI endpoints (health check, predict)
+│   ├── dashboard/
+│   │   └── cf_copilot_dashboard_v02.py  # Streamlit dashboard
 │   ├── interface/
 │   │   └── main.py              # CLI entrypoint — train() and pred() functions
 │   └── ml_logic/
@@ -51,7 +53,9 @@ An `sklearn` Pipeline chains a `ColumnTransformer` (median imputation for numeri
 ├── raw_data/                    # Downloaded and processed CSVs (created at runtime)
 ├── tests/                       # API endpoint tests and project structure checks
 ├── scripts/
-├── Dockerfile                   # Container build for deployment
+├── Dockerfile                   # API container
+├── Dockerfile.streamlit         # Dashboard container
+├── docker-compose.yml           # Local multi-service orchestration
 ├── Makefile                     # Common commands (train, run, test, etc.)
 ├── requirements.txt
 ├── requirements_dev.txt
@@ -63,13 +67,28 @@ An `sklearn` Pipeline chains a `ColumnTransformer` (median imputation for numeri
 ### Prerequisites
 
 - Python 3.10+
+- Docker & Docker Compose
 - Kaggle credentials (for initial dataset download — optional if you supply your own data)
+- A GCP service account key with access to your GCS bucket
 
 ### Installation
 
 ```bash
 git clone <repo-url> && cd cf_copilot
 pip install -e .
+```
+
+### Environment
+
+```bash
+cp .env.example .env
+# Fill in GCP_PROJECT_ID, GCS_BUCKET_NAME, MLFLOW_* and other values
+```
+
+Make sure `GOOGLE_APPLICATION_CREDENTIALS` is set in your shell to your GCP service account key:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
 ```
 
 ### Training
@@ -87,7 +106,7 @@ from cf_copilot.interface.main import train
 pipeline = train()
 ```
 
-### Running the API
+### Running the API locally
 
 ```bash
 uvicorn cf_copilot.api.fast:app --reload
@@ -101,19 +120,54 @@ uvicorn cf_copilot.api.fast:app --reload
 | `GET` | `/predict` | Return payment-week predictions for input features |
 | `GET` | `/debug-load-data` | Sanity check — returns row count and column names |
 
-### Docker
+### Running the Dashboard locally
+
+```bash
+streamlit run cf_copilot/dashboard/cf_copilot_dashboard_v02.py
+```
+
+---
+
+## Docker
+
+### API only
 
 ```bash
 docker build -t cf-copilot .
-docker run -p 8000:8000 cf-copilot
+docker run -p 8080:8080 cf-copilot
 ```
+
+### API + Dashboard together (recommended)
+
+```bash
+# First build — or after any code change:
+docker compose up --build
+
+# Subsequent runs (no code changes):
+docker compose up
+
+# Force a clean rebuild with no cached layers:
+docker compose build --no-cache && docker compose up
+
+# Tear down containers:
+docker compose down
+```
+
+| Service | URL |
+|---|---|
+| API | http://localhost:8080 |
+| Dashboard | http://localhost:8501 |
+
+> **Note:** `GOOGLE_APPLICATION_CREDENTIALS` must be set in your shell before running `docker compose` — the key file is mounted read-only into each container at runtime and is never baked into the image.
+
+---
 
 ## Making Predictions
 
 Once the model is trained and the API is running:
 
 ```bash
-curl "http://localhost:8000/predict?input_one=154&input_two=199"
+curl "http://localhost:8080/predict?input_one=154&input_two=199"
 ```
 
 Each invoice receives a predicted **week bucket** (1 = paid within the first week, 7 = paid in week 7 or later) and a probability distribution across all seven buckets.
@@ -125,8 +179,10 @@ Each invoice receives a predicted **week bucket** (1 = paid within the first wee
 | scikit-learn | Pipeline, Random Forest, metrics |
 | pandas / NumPy | Data wrangling & feature engineering |
 | FastAPI / Uvicorn | Prediction API |
+| Streamlit | Interactive dashboard |
 | kagglehub | Dataset download |
 | MLflow | Experiment tracking |
+| LangChain / ChromaDB | RAG pipeline for AI email generation |
 | matplotlib | Calibration curves & visualisation |
 
 ## Training Data
