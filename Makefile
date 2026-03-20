@@ -29,6 +29,54 @@ test_structure:
 run_api:
 	uvicorn cf_copilot.api.fast:app --reload --port 8000
 
+#======================#
+#   Manual API checks  #
+#======================#
+
+# 0) Boss curl API checks for all individual curl checks below
+
+curl_all:
+	@echo "==> Checking root /"
+	@$(MAKE) curl_root
+	@echo "\n==> Checking /debug-load-data"
+	@$(MAKE) curl_debug_load_data
+	@echo "\n==> Checking /predict"
+	@$(MAKE) curl_predict
+	@echo "\n==> Checking /predict_cashflow"
+	@$(MAKE) curl_predict_cashflow
+	@echo "\n==> Checking /prioritise_invoices"
+	@$(MAKE) curl_prioritise_invoices
+	@echo "\n✅ API smoke tests done"
+
+# 1) Root endpoint
+curl_root:
+	@curl -s http://localhost:8000/
+
+# 2) /predict endpoint (week-bucket predictions)
+curl_predict:
+	@curl -s -X POST "http://localhost:8000/predict" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test_df.csv;type=text/csv"
+
+# 3) /predict_cashflow endpoint
+curl_predict_cashflow:
+	@curl -s -X POST "http://localhost:8000/predict_cashflow" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test_df.csv;type=text/csv"
+
+# 4) /prioritise_invoices endpoint
+curl_prioritise_invoices:
+	@curl -s -X POST "http://localhost:8000/prioritise_invoices" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test_df.csv;type=text/csv" \
+		-F "current_date=2020-02-01"
+
+# 5) /debug-load-data endpoint
+curl_debug_load_data:
+	@curl -s http://localhost:8000/debug-load-data
 
 #======================#
 #          GCP         #
