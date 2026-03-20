@@ -5,3 +5,17 @@ __pycache__
 notebooks/
 raw_data/
 *.egg-info
+
+# secrets — never bake into image
+*.json
+*key*
+*credentials*
+*secret*
+
+# docker
+docker-compose*.yml
+Dockerfile*
+
+# dev
+.pytest_cache/
+.mypy_cache/
