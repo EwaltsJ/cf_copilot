@@ -13,6 +13,8 @@ from datetime import datetime
 from io import BytesIO
 import plotly.graph_objects as go
 
+from cf_copilot.params import API_URL
+
 st.set_page_config(
     page_title="Cash Flow Copilot",
     page_icon="💸",
@@ -334,8 +336,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-
-API_URL = "http://localhost:8000"
 
 for key, default in {
     "df": None, "uploaded_bytes": None,
