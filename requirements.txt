@@ -27,3 +27,12 @@ langchain
 langchain-community
 langchain-google-genai
 chromadb
+
+# Dashboard
+streamlit
+plotly
+requests
+langchain-groq
+langchain-chroma
+langchain-text-splitters
+python-dotenv
