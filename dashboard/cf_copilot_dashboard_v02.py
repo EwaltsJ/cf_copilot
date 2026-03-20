@@ -431,7 +431,7 @@ def build_cashflow_chart(df):
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#6b7fa3")),
         xaxis=dict(gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#6b7fa3")),
         yaxis=dict(gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#6b7fa3"),
-                   title="Amount ($M)", titlefont=dict(color="#6b7fa3")),
+           title=dict(text="Amount ($M)", font=dict(color="#6b7fa3"))),
         margin=dict(l=0, r=0, t=10, b=0), height=300,
     )
     return fig
