@@ -29,7 +29,7 @@ from langchain_core.runnables import RunnablePassthrough
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-GEMINI_MODEL     = "gemini-1.5-flash"
+GEMINI_MODEL     = "gemini-2.5-flash"
 EMBEDDING_MODEL  = "models/gemini-embedding-001"
 DEFAULT_K        = 4
 
@@ -284,7 +284,7 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
         model=GEMINI_MODEL,
         google_api_key=api_key,
         temperature=0.2,
-        max_output_tokens=1500,
+        max_output_tokens = 4096,
     )
 
     chain = RAG_PROMPT | llm | StrOutputParser()
