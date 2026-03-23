@@ -18,9 +18,8 @@ from cf_copilot.rag.script_generator import generate_script, load_vector_store
 # Adjust these 2 paths if your folders live somewhere else
 # -------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parents[1]
-PLAYBOOK_PATH = BASE_DIR / "raw_data" / "playbook"
-CHROMA_PATH = BASE_DIR / "raw_data" / "chroma_db"
-
+PLAYBOOK_PATH = BASE_DIR / "data" / "playbook"
+CHROMA_PATH = BASE_DIR / "data" / "chroma_db"
 
 @asynccontextmanager
 async def lifespan(app):
@@ -44,6 +43,13 @@ async def lifespan(app):
     except Exception as e:
         print(f"⚠️ Vector store load failed at startup: {e}")
         app.state.vector_store = None
+
+    # Load historical-data
+    try:
+        app.state.historical_data = load_cashflow_data()
+    except Exception as e:
+        print(f"⚠️  Data load failed at startup: {e}")
+        app.state.historical_data = None
 
     yield
     # Shutdown (nothing to clean up)
@@ -147,7 +153,26 @@ async def post_rag_script(invoice: dict):
             "error": "Vector store not loaded. Check CHROMA path and startup logs."
         }
 
-    # These are the minimum fields your script_generator expects
+    invoice_data = app.state.historical_data
+    current_invoice = invoice_data[invoice_data['invoice_id'] == invoice['invoice_id']]
+    print(current_invoice.columns)
+    if current_invoice.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {invoice['invoice_id']} not found in historical data."
+        )
+    current_invoice = current_invoice.rename(columns={
+    "name_customer": "customer_name",
+    })
+
+    # Compute days_past_due from due_in_date
+    current_invoice["days_past_due"] = (pd.Timestamp.now() - pd.to_datetime(current_invoice["due_in_date"])).dt.days
+    # Enrich the incoming dict with required fields from the DataFrame
+    row = current_invoice.iloc[0]
+    for field in ["doc_id", "customer_name", "cust_number", "total_open_amount", "due_in_date", "days_past_due"]:
+        if field not in invoice and field in row.index:
+            invoice[field] = row[field]
+
     required_fields = [
         "doc_id",
         "customer_name",
@@ -156,7 +181,6 @@ async def post_rag_script(invoice: dict):
         "due_in_date",
         "days_past_due",
     ]
-
     missing_fields = [field for field in required_fields if field not in invoice]
     if missing_fields:
         raise HTTPException(
@@ -172,7 +196,6 @@ async def post_rag_script(invoice: dict):
             status_code=500,
             detail=f"Failed to generate RAG script: {str(e)}"
         )
-
 
 @app.get("/debug-load-data")
 def debug_load_data():
