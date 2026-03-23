@@ -57,15 +57,8 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df = df[df["invoice_id"].notna()].copy()
 
     # Parse date columns
-    def parse_yyyymmdd_float(s):
-        return pd.to_datetime(
-            pd.to_numeric(s, errors="coerce").astype("Int64").astype("string"),
-            format="%Y%m%d",
-            errors="coerce",
-        )
-
-    df["due_in_date"] = parse_yyyymmdd_float(df["due_in_date"])
-    df["baseline_create_date"] = parse_yyyymmdd_float(df["baseline_create_date"])
+    df["due_in_date"] = pd.to_datetime(df["due_in_date"], format="%Y%m%d", errors="coerce")
+    df["baseline_create_date"] = pd.to_datetime(df["baseline_create_date"], format="%Y%m%d", errors="coerce")
     df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
 
     # Cast IDs
