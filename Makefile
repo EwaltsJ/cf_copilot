@@ -38,8 +38,6 @@ run_api:
 curl_all:
 	@echo "==> Checking root /"
 	@$(MAKE) curl_root
-	@echo "\n==> Checking /debug-load-data"
-	@$(MAKE) curl_debug_load_data
 	@echo "\n==> Checking /predict"
 	@$(MAKE) curl_predict
 	@echo "\n==> Checking /predict_cashflow"
@@ -57,26 +55,24 @@ curl_predict:
 	@curl -s -X POST "http://localhost:8000/predict" \
 		-H "accept: application/json" \
 		-H "Content-Type: multipart/form-data" \
-		-F "file=@raw_data/test_df.csv;type=text/csv"
+		-F "file=@raw_data/test.csv;type=text/csv"
 
 # 3) /predict_cashflow endpoint
 curl_predict_cashflow:
 	@curl -s -X POST "http://localhost:8000/predict_cashflow" \
 		-H "accept: application/json" \
 		-H "Content-Type: multipart/form-data" \
-		-F "file=@raw_data/test_df.csv;type=text/csv"
+		-F "file=@raw_data/test.csv;type=text/csv"
 
 # 4) /prioritise_invoices endpoint
 curl_prioritise_invoices:
 	@curl -s -X POST "http://localhost:8000/prioritise_invoices" \
 		-H "accept: application/json" \
 		-H "Content-Type: multipart/form-data" \
-		-F "file=@raw_data/test_df.csv;type=text/csv" \
-		-F "current_date=2020-02-01"
+		-F "file=@raw_data/test.csv;type=text/csv" \
+		-F "current_date=2025-03-23"
 
-# 5) /debug-load-data endpoint
-curl_debug_load_data:
-	@curl -s http://localhost:8000/debug-load-data
+
 
 #======================#
 #          GCP         #

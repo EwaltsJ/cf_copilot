@@ -70,7 +70,6 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
 
     # Cast IDs
     df["doc_id"] = df["doc_id"].astype("int64")
-    df["invoice_id"] = df["invoice_id"].astype("int64")
 
     # Standardize categorical columns
     cat_cols = ["business_code", "invoice_currency", "cust_payment_terms", "name_customer"]
@@ -78,7 +77,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
         df[c] = df[c].astype(str)
 
     # Select and rename columns
-    df = df[['cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
+    df = df[['doc_id','cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
              'document type', 'total_open_amount', 'baseline_create_date',
              'cust_payment_terms', 'clear_date']]
 
