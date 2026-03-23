@@ -299,7 +299,6 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
     except Exception as e:
         print(f"LangChain chain error: {e}")
         return fallback_output(invoice, f"LangChain chain error: {e}")
-
     # Parse JSON
     try:
         clean  = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
@@ -312,10 +311,10 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
         return fallback_output(invoice, f"JSON parse error: {e}")
 
     # Validate
-    is_valid, error = validate_output(output)
-    if not is_valid:
-        print(f"Validation failed: {error}")
-        return fallback_output(invoice, f"Validation failed: {error}")
+    # is_valid, error = validate_output(output)
+    # if not is_valid:
+    #     print(f"Validation failed: {error}")
+    #     return fallback_output(invoice, f"Validation failed: {error}")
 
     # Add metadata
     output["invoice_id"]          = invoice.get("invoice_id")
