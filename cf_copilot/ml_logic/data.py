@@ -253,7 +253,7 @@ def upload_historical_data(local_csv_path: str = None) -> None:
             f"Source file not found at {local_path}. "
             "Run data_cleaning() first to generate model_df.csv."
         )
-
+    #if ENV != 'production':
     if MODEL_TARGET != "gcs":
         dest = Path(LOCAL_HISTORICAL_DATA_PATH)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -270,7 +270,7 @@ def upload_historical_data(local_csv_path: str = None) -> None:
 
 def load_historical_data() -> pd.DataFrame:
     date_cols = ["invoice_sent", "due_in_date", "invoice_paid"]
-
+    #if ENV == 'production':
     if MODEL_TARGET == "gcs":
         client = gcs_storage.Client()
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
@@ -326,7 +326,7 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
 
     print(f"✅ Historical data updated: {len(combined)} total rows")
 
-
+    #if ENV == 'production':
     if MODEL_TARGET == "gcs":
         client = gcs_storage.Client()
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
