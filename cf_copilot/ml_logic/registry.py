@@ -28,6 +28,8 @@ from cf_copilot.ml_logic.data import (
 )
 from cf_copilot.ml_logic.encoders import preprocess
 
+CURRENT_DATE=pd.to_datetime('2020-05-22')
+
 def save_results(metrics : dict) -> None:
     """
     Persist params & metrics locally on the hard drive at
@@ -199,8 +201,8 @@ def prepare_features(df: pd.DataFrame) -> tuple:
         Tuple of (X, cleaned_df) where X is the feature matrix
         and cleaned_df is the DataFrame after cleaning.
     """
-    cleaned_df = data_cleaning(df)
-    current_date = pd.Timestamp.now()
+    cleaned_df = data_cleaning(df,predict=True)
+    current_date = CURRENT_DATE
     # get historical data
     historical_df = load_historical_data()
     featured_df = engineer_features(cleaned_df, historical_df, current_date)

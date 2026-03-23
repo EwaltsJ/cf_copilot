@@ -180,7 +180,7 @@ def build_invoice_context(invoice: dict) -> str:
     risk_tier  = get_risk_tier(late_ratio)
 
     return f"""
-Invoice ID:           {invoice['invoice_id']}
+Invoice ID:           {invoice['doc_id']}
 Customer name:        {invoice['customer_name']}
 Customer number:      {invoice['cust_number']}
 Amount due:           ${invoice['total_open_amount']:,.2f} {invoice.get('currency', 'USD')}
@@ -240,11 +240,11 @@ def fallback_output(invoice: dict, reason: str) -> dict:
         "stage":               "none",
         "tone":                "neutral",
         "priority":            "high" if invoice.get("days_past_due", 0) > 10 else "medium",
-        "subject":             f"Manual review required — Invoice {invoice.get('invoice_id', 'Unknown')}",
+        "subject":             f"Manual review required — Invoice {invoice.get('doc_id', 'Unknown')}",
         "email_body":          "Please review this invoice manually. Automated script generation failed.",
         "reasoning":           f"Fallback triggered: {reason}",
         "playbook_reference":  "N/A — fallback",
-        "invoice_id":          invoice.get("invoice_id"),
+        "doc_id":          invoice.get("doc_id"),
         "customer_name":       invoice.get("customer_name"),
         "generated_at":        datetime.now().isoformat(),
         "retrieved_sections":  [],
@@ -284,7 +284,7 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
         model=GEMINI_MODEL,
         google_api_key=api_key,
         temperature=0.2,
-        max_output_tokens = 4096,
+        max_output_tokens = 10000,
     )
 
     chain = RAG_PROMPT | llm | StrOutputParser()
@@ -317,7 +317,7 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
     #     return fallback_output(invoice, f"Validation failed: {error}")
 
     # Add metadata
-    output["invoice_id"]          = invoice.get("invoice_id")
+    output["doc_id"]          = invoice.get("doc_id")
     output["customer_name"]       = invoice.get("customer_name")
     output["generated_at"]        = datetime.now().isoformat()
     output["retrieved_sections"]  = [
