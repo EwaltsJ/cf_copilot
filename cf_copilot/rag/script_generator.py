@@ -19,10 +19,10 @@ from pathlib import Path
 from datetime import datetime
 
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
-from langchain.text_splitter import MarkdownHeaderTextSplitter
+from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
@@ -30,7 +30,7 @@ from langchain_core.runnables import RunnablePassthrough
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 GEMINI_MODEL     = "gemini-1.5-flash"
-EMBEDDING_MODEL  = "models/embedding-001"
+EMBEDDING_MODEL  = "models/gemini-embedding-001"
 DEFAULT_K        = 4
 
 VALID_ACTIONS    = {"send_email", "no_action", "manual_review"}
