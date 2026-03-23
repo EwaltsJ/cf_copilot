@@ -88,7 +88,7 @@ async def post_predict(file: UploadFile = File(...)):
 
     predictions = [
         {
-            "invoice_id": int(df.iloc[i]["invoice_id"]),
+            "doc_id": int(df.iloc[i]["doc_id"]),
             "predicted_bucket": int(results["week_bucket"][i]),
             "bucket_probabilities": dict(zip(
                 bucket_labels,
