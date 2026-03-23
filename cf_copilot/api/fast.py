@@ -20,6 +20,7 @@ from cf_copilot.rag.script_generator import generate_script, load_vector_store
 BASE_DIR = Path(__file__).resolve().parents[1]
 PLAYBOOK_PATH = BASE_DIR / "data" / "playbook"
 CHROMA_PATH = BASE_DIR / "data" / "chroma_db"
+CURRENT_DATE='2019-12-17'
 
 @asynccontextmanager
 async def lifespan(app):
@@ -119,7 +120,6 @@ async def post_predict_cashflow(file: UploadFile = File(...)):
 @app.post("/prioritise_invoices")
 async def post_get_priority_invoices(
     file: UploadFile = File(...),
-    current_date: str = Form(...)
 ):
     """Return top 10 risky invoices to prioritise for collection."""
     pipeline = app.state.pipeline
@@ -131,7 +131,7 @@ async def post_get_priority_invoices(
     df = pd.read_csv(BytesIO(contents))
 
     try:
-        current_date_parsed = pd.to_datetime(current_date)
+        current_date_parsed = pd.to_datetime(CURRENT_DATE)
     except Exception:
         return {"error": "Invalid current date format. Use YYYY-MM-DD"}
 
