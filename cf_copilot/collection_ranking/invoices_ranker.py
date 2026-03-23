@@ -17,7 +17,7 @@ def get_priority_invoices(invoices_df: pd.DataFrame, pipeline, current_date) -> 
     Returns:
         DataFrame with top 10 most risky invoices ranked on collections
         priority score in descending order including collections_rank,
-        invoice_id, total_open_amount, days_overdue and risk_category.
+        doc_id, total_open_amount, days_overdue and risk_category.
     """
     results = predict(pipeline, invoices_df)
 
@@ -39,14 +39,14 @@ def _build_risk_table(probas: np.ndarray, invoices_df: pd.DataFrame, current_dat
     invoices_df["days_until_due"] = (invoices_df["due_in_date"] - current_date).dt.days
     invoices_info = ["doc_id", "cust_number", "total_open_amount", "days_until_due"]
 
-    invoices_info = ["invoice_id", "cust_number", "total_open_amount", "days_until_due"]
-
-    return pd.concat(
+    df = pd.concat(
         [invoices_df[invoices_info].reset_index(drop=True),
          risk_df.reset_index(drop=True)],
         axis=1
     )
+    df = df.dropna(subset=[5])
 
+    return df
 
 def _add_computed_risk_score(risk_df: pd.DataFrame) -> pd.DataFrame:
     """
