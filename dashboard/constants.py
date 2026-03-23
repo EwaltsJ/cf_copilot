@@ -1,6 +1,7 @@
 """
 constants.py — Shared constants and configuration for Cash Flow Copilot.
 """
+
 import os
 
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
@@ -21,6 +22,15 @@ RISK_COLORS = {
     4: "#ff6b35",
     5: "#ff4d6d",
     6: "#ff0055",
+}
+
+# String-keyed variants for the /prioritise_invoices response
+RISK_CATEGORY_COLORS = {
+    "Low":       "#00d4aa",
+    "Medium":    "#4d9fff",
+    "High":      "#ffa94d",
+    "Very High": "#ff6b35",
+    "Critical":  "#ff4d6d",
 }
 
 # ── SVG icon definitions ──────────────────────────────────────────────
