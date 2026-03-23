@@ -29,7 +29,7 @@ from langchain_core.runnables import RunnablePassthrough
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-GEMINI_MODEL     = "gemini-2.5-flash"
+GEMINI_MODEL     = "gemini-flash-latest"
 EMBEDDING_MODEL  = "models/gemini-embedding-001"
 DEFAULT_K        = 4
 
