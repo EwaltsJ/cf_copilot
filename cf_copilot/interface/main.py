@@ -1,11 +1,18 @@
 import pandas as pd
 from sklearn.metrics import log_loss
 
-from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, build_sliding_window_snapshots
+from cf_copilot.ml_logic.data import (
+    load_cashflow_data,
+    data_cleaning,
+    build_sliding_window_snapshots,
+    upload_historical_data
+)
 from cf_copilot.ml_logic.encoders import preprocess
 from cf_copilot.ml_logic.model import initialize_model, train_model, evaluate_model
-from cf_copilot.ml_logic.registry import save_model, load_model, predict
-from cf_copilot.ml_logic.registry import mlflow_run, mlflow_transition_model,save_results
+from cf_copilot.ml_logic.registry import (
+    save_model, load_model, predict,
+    mlflow_run, mlflow_transition_model, save_results,
+)
 
 @mlflow_run
 def train():
@@ -44,6 +51,8 @@ def train():
     # The latest model should be moved to staging
     mlflow_transition_model(current_stage="None", new_stage="Staging")
 
+    # 7. Seed / refresh historical data
+    upload_historical_data()
     return pipeline
 
 
