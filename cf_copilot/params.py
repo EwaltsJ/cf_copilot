@@ -3,7 +3,7 @@ import os
 #LOCAL_DATA_PATH = os.path.join(os.path.expanduser('~'), ".lewagon", "mlops", "data")
 LOCAL_REGISTRY_PATH = os.environ.get("LOCAL_REGISTRY_PATH")
 API_URL = os.environ.get("API_URL", "http://localhost:8080")
-
+ENV = os.environ.get("ENV", "staging")
 ##################  VARIABLES  ##################
 MODEL_TARGET = os.environ.get("MODEL_TARGET")
 GCP_PROJECT = os.environ.get("GCP_PROJECT")

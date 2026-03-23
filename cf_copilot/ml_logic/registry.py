@@ -17,9 +17,7 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
     GCS_BUCKET_NAME,
-    GCS_MODEL_PREFIX,
-    #GCS_HISTORICAL_DATA_PATH,
-    #LOCAL_HISTORICAL_DATA_PATH
+    GCS_MODEL_PREFIX
 )
 
 from cf_copilot.ml_logic.data import (
