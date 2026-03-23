@@ -269,7 +269,7 @@ def load_historical_data() -> pd.DataFrame:
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
         data = blob.download_as_bytes()
         df = pd.read_csv(io.BytesIO(data), parse_dates=date_cols)
-        print(f"✅ Historical data loaded from GCS ({len(df)} rows)")
+        print(f"✅ Historical data loaded from GCS ({df.shape[0]} rows)")
         return df
 
     local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
@@ -295,7 +295,7 @@ def load_historical_data() -> pd.DataFrame:
     df = pd.read_csv(local_path, parse_dates=date_cols)
     if "cust_number" in df.columns:
         df["cust_number"] = df["cust_number"].astype(str)
-    print(f"✅ Historical data loaded locally ({len(df)} rows) from {local_path}")
+    #print(f"✅ Historical data loaded locally ({df.shape[0]} rows) from {local_path}")
     return df
 
 
@@ -332,4 +332,4 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
     local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
     local_path.parent.mkdir(parents=True, exist_ok=True)
     combined.to_csv(local_path, index=False)
-    print(f"✅ Written back locally to {local_path}")
+    #print(f"✅ Written back locally to {local_path}")
