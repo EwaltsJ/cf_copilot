@@ -1,3 +1,6 @@
+train:
+	python -m cf_copilot.interface.main
+
 #======================#
 # Install, clean, test #
 #======================#
@@ -27,7 +30,51 @@ test_structure:
 #======================#
 
 run_api:
-	uvicorn cf_copilot.api.fast:app --reload --port 8000
+	uvicorn cf_copilot.api.fast:app --reload --port 8080
+
+#======================#
+#   Manual API checks  #
+#======================#
+
+# 0) Boss curl API checks for all individual curl checks below
+
+curl_all:
+	@echo "==> Checking root /"
+	@$(MAKE) curl_root
+	@echo "\n==> Checking /predict"
+	@$(MAKE) curl_predict
+	@echo "\n==> Checking /predict_cashflow"
+	@$(MAKE) curl_predict_cashflow
+	@echo "\n==> Checking /prioritise_invoices"
+	@$(MAKE) curl_prioritise_invoices
+	@echo "\n✅ API smoke tests done"
+
+# 1) Root endpoint
+curl_root:
+	@curl -s http://localhost:8000/
+
+# 2) /predict endpoint (week-bucket predictions)
+curl_predict:
+	@curl -s -X POST "http://localhost:8000/predict" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test.csv;type=text/csv"
+
+# 3) /predict_cashflow endpoint
+curl_predict_cashflow:
+	@curl -s -X POST "http://localhost:8000/predict_cashflow" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test.csv;type=text/csv"
+
+# 4) /prioritise_invoices endpoint
+curl_prioritise_invoices:
+	@curl -s -X POST "http://localhost:8000/prioritise_invoices" \
+		-H "accept: application/json" \
+		-H "Content-Type: multipart/form-data" \
+		-F "file=@raw_data/test.csv;type=text/csv" \
+		-F "current_date=2025-03-23"
+
 
 
 #======================#
@@ -53,13 +100,13 @@ docker_build_local:
 
 docker_run_local:
 	docker run \
-		-e PORT=8000 -p $(DOCKER_LOCAL_PORT):8000 \
+		-e PORT=8080 -p $(DOCKER_LOCAL_PORT):8080 \
 		--env-file .env \
 		$(DOCKER_IMAGE_NAME):local
 
 docker_run_local_interactively:
 	docker run -it \
-		-e PORT=8000 -p $(DOCKER_LOCAL_PORT):8000 \
+		-e PORT=8080 -p $(DOCKER_LOCAL_PORT):8080 \
 		--env-file .env \
 		$(DOCKER_IMAGE_NAME):local \
 		bash
@@ -86,14 +133,14 @@ docker_build_alternative:
 docker_run:
 	docker run \
 		--platform linux/amd64 \
-		-e PORT=8000 -p $(DOCKER_LOCAL_PORT):8000 \
+		-e PORT=8080 -p $(DOCKER_LOCAL_PORT):8080 \
 		--env-file .env \
 		$(DOCKER_IMAGE_PATH):prod
 
 docker_run_interactively:
 	docker run -it \
 		--platform linux/amd64 \
-		-e PORT=8000 -p $(DOCKER_LOCAL_PORT):8000 \
+		-e PORT=8080 -p $(DOCKER_LOCAL_PORT):8080 \
 		--env-file .env \
 		$(DOCKER_IMAGE_PATH):prod \
 		bash
@@ -156,19 +203,6 @@ delete_cloud_run_service:
 #======================#
 #         TESTS        #
 #======================#
-
-test_api_root:
-	pytest \
-	  tests/api/test_endpoints.py::test_root_is_up \
-	  tests/api/test_endpoints.py::test_root_returns_greeting \
-	  --asyncio-mode=strict -W "ignore"
-
-test_api_predict:
-	pytest \
-	tests/api/test_endpoints.py::test_predict_is_up --asyncio-mode=strict -W "ignore" \
-	tests/api/test_endpoints.py::test_predict_is_dict --asyncio-mode=strict -W "ignore" \
-	tests/api/test_endpoints.py::test_predict_has_key --asyncio-mode=strict -W "ignore" \
-	tests/api/test_endpoints.py::test_predict_val_is_float --asyncio-mode=strict -W "ignore"
 
 test_api_on_docker:
 	pytest \

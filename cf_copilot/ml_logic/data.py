@@ -3,6 +3,16 @@ import pandas as pd
 from pathlib import Path
 import kagglehub
 from kagglehub import KaggleDatasetAdapter
+import io
+import shutil
+from google.cloud import storage as gcs_storage
+from cf_copilot.params import (
+    ENV,
+    MODEL_TARGET,
+    GCS_BUCKET_NAME,
+    GCS_HISTORICAL_DATA_PATH,
+    LOCAL_HISTORICAL_DATA_PATH,
+)
 
 def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
     """Load invoice dataset from local raw_data folder, or download from Kaggle.
@@ -51,26 +61,20 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
 
+    if "cust_number" in df.columns:
+        df["cust_number"] = df["cust_number"].astype(str)
     # Drop invalid invoice ids
     df = df.dropna(subset=["invoice_id"]).copy()
     df["invoice_id"] = pd.to_numeric(df["invoice_id"], errors="coerce")
     df = df[df["invoice_id"].notna()].copy()
 
     # Parse date columns
-    def parse_yyyymmdd_float(s):
-        return pd.to_datetime(
-            pd.to_numeric(s, errors="coerce").astype("Int64").astype("string"),
-            format="%Y%m%d",
-            errors="coerce",
-        )
-
-    df["due_in_date"] = parse_yyyymmdd_float(df["due_in_date"])
-    df["baseline_create_date"] = parse_yyyymmdd_float(df["baseline_create_date"])
+    df["due_in_date"] = pd.to_datetime(df["due_in_date"], format="%Y%m%d", errors="coerce")
+    df["baseline_create_date"] = pd.to_datetime(df["baseline_create_date"], format="%Y%m%d", errors="coerce")
     df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
 
     # Cast IDs
     df["doc_id"] = df["doc_id"].astype("int64")
-    df["invoice_id"] = df["invoice_id"].astype("int64")
 
     # Standardize categorical columns
     cat_cols = ["business_code", "invoice_currency", "cust_payment_terms", "name_customer"]
@@ -78,7 +82,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
         df[c] = df[c].astype(str)
 
     # Select and rename columns
-    df = df[['cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
+    df = df[['doc_id','cust_number', 'buisness_year', 'due_in_date', 'invoice_currency',
              'document type', 'total_open_amount', 'baseline_create_date',
              'cust_payment_terms', 'clear_date']]
 
@@ -92,7 +96,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df = df.sort_values("invoice_sent").reset_index(drop=True)
 
     model_df = df[df["invoice_paid"].notnull()]
-    demo_df = df
+    #demo_df = df
 
     # Save processed frames
     base_dir = Path(__file__).resolve().parents[2]
@@ -100,11 +104,11 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     raw_data_dir.mkdir(parents=True, exist_ok=True)
 
     model_df.to_csv(raw_data_dir / "model_df.csv", index=False)
-    demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
+    #demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
 
-    print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
-
-    return model_df, demo_df
+    #print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
+    print(f"Saved model_df ({len(model_df)} rows)")
+    return model_df
 
 
 def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
@@ -231,3 +235,101 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
     print(big_df["week_bucket"].value_counts().sort_index())
 
     return big_df
+
+def upload_historical_data(local_csv_path: str = None) -> None:
+    if local_csv_path is None:
+        base_dir = Path(__file__).resolve().parents[2]
+        local_csv_path = base_dir / "raw_data" / "model_df.csv"
+
+    local_path = Path(local_csv_path)
+    if not local_path.is_file():
+        raise FileNotFoundError(
+            f"Source file not found at {local_path}. "
+            "Run data_cleaning() first to generate model_df.csv."
+        )
+    if ENV != 'production':
+        dest = Path(LOCAL_HISTORICAL_DATA_PATH)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(local_path, dest)
+        print(f"✅ Historical data copied locally to {dest}")
+        return
+
+    client = gcs_storage.Client()
+    blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
+    blob.upload_from_filename(str(local_path), content_type="text/csv")
+    print(f"✅ Uploaded {local_path} → gs://{GCS_BUCKET_NAME}/{GCS_HISTORICAL_DATA_PATH}")
+
+
+
+def load_historical_data() -> pd.DataFrame:
+    date_cols = ["invoice_sent", "due_in_date", "invoice_paid"]
+
+    if ENV == 'production':
+        client = gcs_storage.Client()
+        blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
+        data = blob.download_as_bytes()
+        df = pd.read_csv(io.BytesIO(data), parse_dates=date_cols)
+        print(f"✅ Historical data loaded from GCS ({df.shape[0]} rows)")
+        return df
+
+    local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
+    if not local_path.is_file():
+        # Fallback: initialize from model_df.csv on first use
+        base_dir = Path(__file__).resolve().parents[2]
+        model_df_path = base_dir / "raw_data" / "model_df.csv"
+        if model_df_path.is_file():
+            df = pd.read_csv(model_df_path, parse_dates=date_cols)
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(local_path, index=False)
+            print(f"✅ Initialized historical data from {model_df_path} → {local_path}")
+            if "cust_number" in df.columns:
+                df["cust_number"] = df["cust_number"].astype(str)
+            return df
+
+        # If even model_df.csv is missing, last‑resort error
+        raise FileNotFoundError(
+            f"No historical data at {local_path} and no model_df at {model_df_path}. "
+            "Run data_cleaning() or upload_historical_data() first."
+        )
+
+    df = pd.read_csv(local_path, parse_dates=date_cols)
+    if "cust_number" in df.columns:
+        df["cust_number"] = df["cust_number"].astype(str)
+    #print(f"✅ Historical data loaded locally ({df.shape[0]} rows) from {local_path}")
+    return df
+
+
+def append_to_historical_data(new_df: pd.DataFrame) -> None:
+    try:
+        historical_df = load_historical_data()
+    except FileNotFoundError:
+        print("⚠️  No historical data found — initializing from new data.")
+        historical_df = pd.DataFrame()
+
+    combined = pd.concat([historical_df, new_df], ignore_index=True)
+
+    if "invoice_id" in combined.columns:
+        before = len(combined)
+        combined = combined.drop_duplicates(subset=["invoice_id"], keep="last")
+        dropped = before - len(combined)
+        if dropped:
+            print(f"⚠️  Dropped {dropped} duplicate invoice_id rows")
+    else:
+        print("⚠️  invoice_id column missing — deduplication will not work")
+
+    print(f"✅ Historical data updated: {len(combined)} total rows")
+
+    if ENV == 'production':
+        client = gcs_storage.Client()
+        blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
+        blob.upload_from_string(
+            combined.to_csv(index=False).encode("utf-8"),
+            content_type="text/csv",
+        )
+        print(f"✅ Written back to gs://{GCS_BUCKET_NAME}/{GCS_HISTORICAL_DATA_PATH}")
+        return
+
+    local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.to_csv(local_path, index=False)
+    #print(f"✅ Written back locally to {local_path}")

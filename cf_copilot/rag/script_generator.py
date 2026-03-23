@@ -19,18 +19,18 @@ from pathlib import Path
 from datetime import datetime
 
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
-from langchain.text_splitter import MarkdownHeaderTextSplitter
+from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-GEMINI_MODEL     = "gemini-1.5-flash"
-EMBEDDING_MODEL  = "models/embedding-001"
+GEMINI_MODEL     = "gemini-flash-latest"
+EMBEDDING_MODEL  = "models/gemini-embedding-001"
 DEFAULT_K        = 4
 
 VALID_ACTIONS    = {"send_email", "no_action", "manual_review"}
@@ -284,7 +284,7 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
         model=GEMINI_MODEL,
         google_api_key=api_key,
         temperature=0.2,
-        max_output_tokens=1500,
+        max_output_tokens = 4096,
     )
 
     chain = RAG_PROMPT | llm | StrOutputParser()
@@ -299,7 +299,6 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
     except Exception as e:
         print(f"LangChain chain error: {e}")
         return fallback_output(invoice, f"LangChain chain error: {e}")
-
     # Parse JSON
     try:
         clean  = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.MULTILINE)
@@ -312,10 +311,10 @@ def generate_script(invoice: dict, vector_store: Chroma, k: int = DEFAULT_K) -> 
         return fallback_output(invoice, f"JSON parse error: {e}")
 
     # Validate
-    is_valid, error = validate_output(output)
-    if not is_valid:
-        print(f"Validation failed: {error}")
-        return fallback_output(invoice, f"Validation failed: {error}")
+    # is_valid, error = validate_output(output)
+    # if not is_valid:
+    #     print(f"Validation failed: {error}")
+    #     return fallback_output(invoice, f"Validation failed: {error}")
 
     # Add metadata
     output["invoice_id"]          = invoice.get("invoice_id")

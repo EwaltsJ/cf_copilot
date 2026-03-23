@@ -35,7 +35,7 @@ def _build_risk_table(probas: np.ndarray, invoices_df: pd.DataFrame, current_dat
     risk_df = pd.DataFrame(probas, columns=CLASS_NAMES)
 
     invoices_df = invoices_df.copy()
-    invoices_df["due_in_date"] = pd.to_datetime(invoices_df["due_in_date"])
+    invoices_df["due_in_date"] = pd.to_datetime(invoices_df["due_in_date"], format="%Y%m%d", errors="coerce")
     invoices_df["days_until_due"] = (invoices_df["due_in_date"] - current_date).dt.days
 
     invoices_info = ["invoice_id", "cust_number", "total_open_amount", "days_until_due"]

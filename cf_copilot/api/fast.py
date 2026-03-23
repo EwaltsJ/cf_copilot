@@ -1,23 +1,57 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from io import BytesIO
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from cf_copilot.ml_logic.registry import load_model, predict
 from cf_copilot.ml_logic.data import load_cashflow_data
 from cf_copilot.cashflow_prediction.registry import predict_cashflow
 from cf_copilot.collection_ranking.invoices_ranker import get_priority_invoices
 
+from cf_copilot.rag.script_generator import generate_script, load_vector_store
+
+
+# -------------------------------------------------------------------
+# Paths for the RAG playbook / vector store
+# Adjust these 2 paths if your folders live somewhere else
+# -------------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parents[1]
+PLAYBOOK_PATH = BASE_DIR / "data" / "playbook"
+CHROMA_PATH = BASE_DIR / "data" / "chroma_db"
+CURRENT_DATE='2019-12-17'
 
 @asynccontextmanager
 async def lifespan(app):
-    """Load model once the server is running"""
+    """Load model and vector store once when the server starts"""
+    # Load ML pipeline
     try:
         app.state.pipeline = load_model()
+        print("✅ ML model loaded successfully.")
     except Exception as e:
         print(f"⚠️  Model load failed at startup: {e}")
         app.state.pipeline = None
+
+    # Load RAG vector store
+    try:
+        if not CHROMA_PATH.exists():
+            print(f"⚠️ Chroma path not found: {CHROMA_PATH}")
+            app.state.vector_store = None
+        else:
+            app.state.vector_store = load_vector_store(CHROMA_PATH)
+            print("✅ Vector store loaded successfully.")
+    except Exception as e:
+        print(f"⚠️ Vector store load failed at startup: {e}")
+        app.state.vector_store = None
+
+    # Load historical-data
+    try:
+        app.state.historical_data = load_cashflow_data()
+    except Exception as e:
+        print(f"⚠️  Data load failed at startup: {e}")
+        app.state.historical_data = None
+
     yield
     # Shutdown (nothing to clean up)
 
@@ -54,7 +88,7 @@ async def post_predict(file: UploadFile = File(...)):
 
     predictions = [
         {
-            "invoice_id": int(df.iloc[i]["invoice_id"]),
+            "doc_id": int(df.iloc[i]["doc_id"]),
             "predicted_bucket": int(results["week_bucket"][i]),
             "bucket_probabilities": dict(zip(
                 bucket_labels,
@@ -86,7 +120,6 @@ async def post_predict_cashflow(file: UploadFile = File(...)):
 @app.post("/prioritise_invoices")
 async def post_get_priority_invoices(
     file: UploadFile = File(...),
-    current_date: str = Form(...)
 ):
     """Return top 10 risky invoices to prioritise for collection."""
     pipeline = app.state.pipeline
@@ -98,7 +131,7 @@ async def post_get_priority_invoices(
     df = pd.read_csv(BytesIO(contents))
 
     try:
-        current_date_parsed = pd.to_datetime(current_date)
+        current_date_parsed = pd.to_datetime(CURRENT_DATE)
     except Exception:
         return {"error": "Invalid current date format. Use YYYY-MM-DD"}
 
@@ -106,6 +139,63 @@ async def post_get_priority_invoices(
 
     return priority_invoices_df.to_dict(orient="records")
 
+
+@app.post("/rag_script")
+async def post_rag_script(invoice: dict):
+    """
+    Generate a RAG/LLM collection email + action script for one invoice.
+    Expects a JSON body with invoice fields.
+    """
+    vector_store = app.state.vector_store
+
+    if vector_store is None:
+        return {
+            "error": "Vector store not loaded. Check CHROMA path and startup logs."
+        }
+
+    invoice_data = app.state.historical_data
+    current_invoice = invoice_data[invoice_data['invoice_id'] == invoice['invoice_id']]
+
+    if current_invoice.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {invoice['invoice_id']} not found in historical data."
+        )
+    current_invoice = current_invoice.rename(columns={
+    "name_customer": "customer_name",
+    })
+
+    # Compute days_past_due from due_in_date
+    current_invoice["days_past_due"] = (pd.Timestamp.now() - pd.to_datetime(current_invoice["due_in_date"])).dt.days
+    # Enrich the incoming dict with required fields from the DataFrame
+    row = current_invoice.iloc[0]
+    for field in ["doc_id", "customer_name", "cust_number", "total_open_amount", "due_in_date", "days_past_due"]:
+        if field not in invoice and field in row.index:
+            invoice[field] = row[field]
+
+    required_fields = [
+        "doc_id",
+        "customer_name",
+        "cust_number",
+        "total_open_amount",
+        "due_in_date",
+        "days_past_due",
+    ]
+    missing_fields = [field for field in required_fields if field not in invoice]
+    if missing_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required invoice fields: {missing_fields}"
+        )
+
+    try:
+        result = generate_script(invoice=invoice, vector_store=vector_store)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate RAG script: {str(e)}"
+        )
 
 @app.get("/debug-load-data")
 def debug_load_data():

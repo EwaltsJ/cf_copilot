@@ -39,7 +39,7 @@ def preprocess(df: pd.DataFrame, inference: bool = False) -> tuple:
     df["days_since_last_invoice"] = df["days_since_last_invoice"].fillna(-1)
 
     drop_cols = [
-        "cust_number", "due_in_date", "invoice_sent",
+        "doc_id","cust_number", "due_in_date", "invoice_sent",
         "reference_date", "week_bucket", "days_to_payment",
     ]
     feature_cols = [c for c in df.columns if c not in drop_cols]
