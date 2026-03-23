@@ -308,14 +308,14 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
 
     combined = pd.concat([historical_df, new_df], ignore_index=True)
 
-    if "invoice_id" in combined.columns:
+    if "doc_id" in combined.columns:
         before = len(combined)
-        combined = combined.drop_duplicates(subset=["invoice_id"], keep="last")
+        combined = combined.drop_duplicates(subset=["doc_id"], keep="last")
         dropped = before - len(combined)
         if dropped:
-            print(f"⚠️  Dropped {dropped} duplicate invoice_id rows")
+            print(f"⚠️  Dropped {dropped} duplicate doc_id rows")
     else:
-        print("⚠️  invoice_id column missing — deduplication will not work")
+        print("⚠️ doc_idcolumn missing — deduplication will not work")
 
     print(f"✅ Historical data updated: {len(combined)} total rows")
 
