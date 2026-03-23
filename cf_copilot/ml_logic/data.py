@@ -326,6 +326,7 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
 
     print(f"✅ Historical data updated: {len(combined)} total rows")
 
+
     if MODEL_TARGET == "gcs":
         client = gcs_storage.Client()
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
