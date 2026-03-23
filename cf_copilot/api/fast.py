@@ -20,7 +20,7 @@ from cf_copilot.rag.script_generator import generate_script, load_vector_store
 BASE_DIR = Path(__file__).resolve().parents[1]
 PLAYBOOK_PATH = BASE_DIR / "data" / "playbook"
 CHROMA_PATH = BASE_DIR / "data" / "chroma_db"
-CURRENT_DATE='2019-12-17'
+CURRENT_DATE=pd.to_datetime('2020-05-22')
 
 @asynccontextmanager
 async def lifespan(app):
@@ -131,7 +131,7 @@ async def post_get_priority_invoices(
     df = pd.read_csv(BytesIO(contents))
 
     try:
-        current_date_parsed = pd.to_datetime(CURRENT_DATE)
+        current_date_parsed = CURRENT_DATE
     except Exception:
         return {"error": "Invalid current date format. Use YYYY-MM-DD"}
 
@@ -154,12 +154,12 @@ async def post_rag_script(invoice: dict):
         }
 
     invoice_data = app.state.historical_data
-    current_invoice = invoice_data[invoice_data['invoice_id'] == invoice['invoice_id']]
+    current_invoice = invoice_data[invoice_data['doc_id'] == invoice['doc_id']]
 
     if current_invoice.empty:
         raise HTTPException(
             status_code=404,
-            detail=f"Invoice {invoice['invoice_id']} not found in historical data."
+            detail=f"Invoice {invoice['doc_id']} not found in historical data."
         )
     current_invoice = current_invoice.rename(columns={
     "name_customer": "customer_name",
