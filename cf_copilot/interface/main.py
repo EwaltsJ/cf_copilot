@@ -1,11 +1,12 @@
 import pandas as pd
-from sklearn.metrics import log_loss
 
 from cf_copilot.ml_logic.data import load_cashflow_data, data_cleaning, build_sliding_window_snapshots
 from cf_copilot.ml_logic.encoders import preprocess
-from cf_copilot.ml_logic.model import initialize_model, train_model, evaluate_model
-from cf_copilot.ml_logic.registry import save_model, load_model, predict
-from cf_copilot.ml_logic.registry import mlflow_run, mlflow_transition_model,save_results
+from cf_copilot.ml_logic.model import initialize_model, train_model
+from cf_copilot.ml_logic.registry import save_model, load_model, predict, mlflow_run, mlflow_transition_model, save_results
+from cf_copilot.ml_logic.evaluation import evaluate_training_run
+from cf_copilot.ml_logic.reporting import build_run_summary, build_json_artifacts
+
 
 @mlflow_run
 def train():
@@ -32,16 +33,35 @@ def train():
     pipeline = initialize_model()
     pipeline = train_model(pipeline, X_train, y_train)
 
-    # 5. Evaluate
-    metrics = evaluate_model(pipeline, X_test, y_test)
+    # 5. Evaluate holdout & rolling backtests
+    evaluation_results = evaluate_training_run(pipeline=pipeline, X_test=X_test, y_test=y_test,
+                                               test_df=test_df, big_df=big_df, log_backtests_to_mlflow=True
+    )
 
-    # Save results on the hard drive using taxifare.ml_logic.registry
-    save_results(metrics=dict(metrics))
+    metrics = evaluation_results["metrics"]
+    figures = evaluation_results["figures"]
+    artifacts = evaluation_results["artifacts"]
+    forecast_summary = evaluation_results["forecast_summary"]
+    backtest_summary = evaluation_results["backtest_summary"]
+    forecast_backtest_summary = evaluation_results["forecast_backtest_summary"]
 
-    # 6. Save
+    # 6. Build run summary & combine all summaries as JSON artifacts
+    run_summary = build_run_summary(model=pipeline, X_train=X_train, X_test=X_test,
+        y_train=y_train, y_test=y_test, metrics=metrics, cutoff_date=cutoff_date,
+        split_column="reference_date",
+    )
+
+    json_artifacts = build_json_artifacts(run_summary=run_summary, backtest_summary=backtest_summary,
+        forecast_summary=forecast_summary, forecast_backtest_summary=forecast_backtest_summary,
+    )
+
+    # 7. Save results
+    save_results(metrics=metrics, figures=figures, artifacts=artifacts, json_artifacts=json_artifacts)
+
+    # 8. Save model
     save_model(pipeline)
 
-    # The latest model should be moved to staging
+    # 9. Move latest model to staging
     mlflow_transition_model(current_stage="None", new_stage="Staging")
 
     return pipeline
