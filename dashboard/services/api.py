@@ -65,7 +65,6 @@ def call_prioritise_invoices(file_bytes, current_date: str):
         r = requests.post(
             f"{API_URL}/prioritise_invoices",
             files={"file": ("invoices.csv", file_bytes, "text/csv")},
-            data={"current_date": current_date},
             timeout=30,
         )
         r.raise_for_status()

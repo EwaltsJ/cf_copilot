@@ -123,7 +123,7 @@ uvicorn cf_copilot.api.fast:app --reload
 ### Running the Dashboard locally
 
 ```bash
-streamlit run cf_copilot/dashboard/cf_copilot_dashboard_v02.py
+streamlit run dashboard/app.py
 ```
 
 ---
