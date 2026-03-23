@@ -193,7 +193,7 @@ def prepare_features(df: pd.DataFrame) -> tuple:
         Tuple of (X, cleaned_df) where X is the feature matrix
         and cleaned_df is the DataFrame after cleaning.
     """
-    cleaned_df, _ = data_cleaning(df)
+    cleaned_df = data_cleaning(df)
     current_date = pd.Timestamp.now()
     # TODO: Accept a historical df for customer behaviour features
     featured_df = engineer_features(cleaned_df, cleaned_df, current_date)

@@ -13,10 +13,10 @@ def train():
 
     # 1. Load & clean
     df = load_cashflow_data()
-    model_df, demo_df = data_cleaning(df)
+    model_df = data_cleaning(df)
 
     # 2. Build augmented dataset with sliding windows + feature engineering
-    big_df = build_sliding_window_snapshots(demo_df)
+    big_df = build_sliding_window_snapshots(model_df)
 
     # 3. Time-based train/test split
     big_df = big_df.sort_values("invoice_sent").reset_index(drop=True)

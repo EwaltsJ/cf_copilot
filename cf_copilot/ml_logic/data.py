@@ -91,7 +91,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df = df.sort_values("invoice_sent").reset_index(drop=True)
 
     model_df = df[df["invoice_paid"].notnull()]
-    demo_df = df
+    #demo_df = df
 
     # Save processed frames
     base_dir = Path(__file__).resolve().parents[2]
@@ -99,11 +99,11 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     raw_data_dir.mkdir(parents=True, exist_ok=True)
 
     model_df.to_csv(raw_data_dir / "model_df.csv", index=False)
-    demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
+    #demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
 
-    print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
-
-    return model_df, demo_df
+    #print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
+    print(f"Saved model_df ({len(model_df)} rows)")
+    return model_df
 
 
 def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
