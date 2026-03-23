@@ -155,7 +155,7 @@ async def post_rag_script(invoice: dict):
 
     invoice_data = app.state.historical_data
     current_invoice = invoice_data[invoice_data['invoice_id'] == invoice['invoice_id']]
-    print(current_invoice.columns)
+
     if current_invoice.empty:
         raise HTTPException(
             status_code=404,
