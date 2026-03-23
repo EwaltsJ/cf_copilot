@@ -205,6 +205,7 @@ def predict(model, df: pd.DataFrame) -> dict:
     """Clean, engineer features, and return predictions.
 
     Args:
+
         model: a fitted sklearn Pipeline.
         df: raw invoice DataFrame.
 
