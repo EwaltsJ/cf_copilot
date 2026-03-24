@@ -57,6 +57,10 @@ def data_cleaning(df: pd.DataFrame, predict: bool=False) -> tuple:
     Returns:
         A tuple (model_df, demo_df).
     """
+    # to remove warning of SettingWithCopyWarning:
+    df = df.copy()
+
+    # drop duplicates and name stripping
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
 
@@ -75,7 +79,7 @@ def data_cleaning(df: pd.DataFrame, predict: bool=False) -> tuple:
     df["doc_id"] = df["doc_id"].astype("int64")
 
     # Standardize categorical columns
-    cat_cols = ["business_code", "invoice_currency", "cust_payment_terms", "name_customer"]
+    cat_cols = ["business_code", "name_customer", "invoice_currency", "document type", "cust_payment_terms"]
     for c in cat_cols:
         df[c] = df[c].astype(str)
 
@@ -91,11 +95,31 @@ def data_cleaning(df: pd.DataFrame, predict: bool=False) -> tuple:
         'baseline_create_date': 'invoice_sent',
     }, inplace=True)
 
+    # sort values
     df = df.sort_values("invoice_sent").reset_index(drop=True)
+    # data conversion
+    df["business_year"] = df["business_year"].round().astype("int64")
+
+    # converting cad to usd
+    cad_to_usd_by_year = {
+        2018 : 0.771,
+        2019 : 0.754,
+        2020 : 0.745
+    }
+    def convert_cad_to_usd_amount(row):
+        if row['invoice_currency'].strip().upper() == "USD":
+            return row["total_open_amount"]
+        elif row['invoice_currency'].strip().upper() == "CAD":
+            year = int(row['business_year'])
+            rate = cad_to_usd_by_year.get(year,0.75)
+            return row["total_open_amount"] * rate
+        else:
+            return row["total_open_amount"]
+
+    df["total_open_amount"] = df.apply(convert_cad_to_usd_amount,axis=1)
+
     if not predict:
         df = df[df["invoice_paid"].notnull()]
-    #demo_df = df
-
     # Save processed frames
     base_dir = Path(__file__).resolve().parents[2]
     raw_data_dir = base_dir / "raw_data"
