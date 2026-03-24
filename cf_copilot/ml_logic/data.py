@@ -8,7 +8,6 @@ import shutil
 from google.cloud import storage as gcs_storage
 from cf_copilot.params import (
     ENV,
-    MODEL_TARGET,
     GCS_BUCKET_NAME,
     GCS_HISTORICAL_DATA_PATH,
     LOCAL_HISTORICAL_DATA_PATH,
@@ -45,7 +44,7 @@ def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
     return df
 
 
-def data_cleaning(df: pd.DataFrame) -> tuple:
+def data_cleaning(df: pd.DataFrame, predict: bool=False) -> tuple:
     """Clean raw data and split into model and demo DataFrames.
 
     Deduplicates rows, parses dates, renames misspelled columns, selects
@@ -76,7 +75,6 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df["due_in_date"] = pd.to_datetime(df["due_in_date"], format="%Y%m%d", errors="coerce")
     df["baseline_create_date"] = pd.to_datetime(df["baseline_create_date"], format="%Y%m%d", errors="coerce")
     df["clear_date"] = pd.to_datetime(df["clear_date"], errors="coerce")
-
     # Cast IDs
     df["doc_id"] = df["doc_id"].astype("int64")
 
@@ -99,7 +97,6 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
 
     # sort values
     df = df.sort_values("invoice_sent").reset_index(drop=True)
-
     # data conversion
     df["business_year"] = df["business_year"].round().astype("int64")
 
@@ -121,19 +118,18 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
 
     df["total_open_amount"] = df.apply(convert_cad_to_usd_amount,axis=1)
 
-    # final check
-    model_df = df[df["invoice_paid"].notnull()]
-
+    if not predict:
+        df = df[df["invoice_paid"].notnull()]
     # Save processed frames
     base_dir = Path(__file__).resolve().parents[2]
     raw_data_dir = base_dir / "raw_data"
     raw_data_dir.mkdir(parents=True, exist_ok=True)
+    if not predict:
+        df.to_csv(raw_data_dir / "df.csv", index=False)
+    #demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
 
-    model_df.to_csv(raw_data_dir / "model_df.csv", index=False)
-
-    #print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
-    print(f"Saved model_df ({len(model_df)} rows)")
-    return model_df
+    #print(f"Saved df ({len(df)} rows) and demo_df ({len(demo_df)} rows)")
+    return df
 
 
 def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
@@ -153,7 +149,6 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     """
     # A) Invoice timing features
     open_invoice = snapshot["invoice_paid"].isna() | (snapshot["invoice_paid"] > current_date)
-
     snapshot["invoice_age_days"] = np.where(
         open_invoice,
         (current_date - snapshot["invoice_sent"]).dt.days,
@@ -264,13 +259,13 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
 def upload_historical_data(local_csv_path: str = None) -> None:
     if local_csv_path is None:
         base_dir = Path(__file__).resolve().parents[2]
-        local_csv_path = base_dir / "raw_data" / "model_df.csv"
+        local_csv_path = base_dir / "raw_data" / "df.csv"
 
     local_path = Path(local_csv_path)
     if not local_path.is_file():
         raise FileNotFoundError(
             f"Source file not found at {local_path}. "
-            "Run data_cleaning() first to generate model_df.csv."
+            "Run data_cleaning() first to generate df.csv."
         )
     if ENV != 'production':
         dest = Path(LOCAL_HISTORICAL_DATA_PATH)
@@ -299,9 +294,9 @@ def load_historical_data() -> pd.DataFrame:
 
     local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
     if not local_path.is_file():
-        # Fallback: initialize from model_df.csv on first use
+        # Fallback: initialize from df.csv on first use
         base_dir = Path(__file__).resolve().parents[2]
-        model_df_path = base_dir / "raw_data" / "model_df.csv"
+        model_df_path = base_dir / "raw_data" / "df.csv"
         if model_df_path.is_file():
             df = pd.read_csv(model_df_path, parse_dates=date_cols)
             local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -311,7 +306,7 @@ def load_historical_data() -> pd.DataFrame:
                 df["cust_number"] = df["cust_number"].astype(str)
             return df
 
-        # If even model_df.csv is missing, last‑resort error
+        # If even df.csv is missing, last‑resort error
         raise FileNotFoundError(
             f"No historical data at {local_path} and no model_df at {model_df_path}. "
             "Run data_cleaning() or upload_historical_data() first."
@@ -333,14 +328,14 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
 
     combined = pd.concat([historical_df, new_df], ignore_index=True)
 
-    if "invoice_id" in combined.columns:
+    if "doc_id" in combined.columns:
         before = len(combined)
-        combined = combined.drop_duplicates(subset=["invoice_id"], keep="last")
+        combined = combined.drop_duplicates(subset=["doc_id"], keep="last")
         dropped = before - len(combined)
         if dropped:
-            print(f"⚠️  Dropped {dropped} duplicate invoice_id rows")
+            print(f"⚠️  Dropped {dropped} duplicate doc_id rows")
     else:
-        print("⚠️  invoice_id column missing — deduplication will not work")
+        print("⚠️ doc_idcolumn missing — deduplication will not work")
 
     print(f"✅ Historical data updated: {len(combined)} total rows")
 

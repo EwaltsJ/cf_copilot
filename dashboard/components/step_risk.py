@@ -6,7 +6,7 @@ Rewritten to use:
   - native st.*      for interactive widgets (buttons, selectbox, dataframe)
 
 API response schema from /prioritise_invoices:
-  collections_rank, invoice_id, cust_number,
+  collections_rank, doc_id, cust_number,
   total_open_amount, days_overdue, risk_category
 """
 
@@ -106,7 +106,7 @@ def _render_api_results(pred: pd.DataFrame):
     top10 = pred.sort_values("collections_rank").head(10).reset_index(drop=True)
 
     options = ["Select an invoice…"] + [
-        f"#{int(r['collections_rank'])}  |  {int(r['invoice_id'])}  |  "
+        f"#{int(r['collections_rank'])}  |  {int(r['doc_id'])}  |  "
         f"${float(r['total_open_amount']):,.0f}  |  {r['risk_category']}"
         for _, r in top10.iterrows()
     ]
@@ -154,7 +154,7 @@ def _api_display_df(top10: pd.DataFrame) -> pd.DataFrame:
     for _, r in top10.iterrows():
         rows.append({
             "Rank":     int(r["collections_rank"]),
-            "Invoice":  str(int(r["invoice_id"])),
+            "Invoice":  str(int(r["doc_id"])),
             "Customer": str(int(r["cust_number"])),
             "Amount":   f"${float(r['total_open_amount']):,.0f}",
             "Days OD":  int(r["days_overdue"]),
@@ -170,7 +170,7 @@ def _render_api_panel(inv: dict):
     days_od    = int(inv.get("days_overdue", 0))
     amount     = float(inv.get("total_open_amount", 0))
     rank       = int(inv.get("collections_rank", 0))
-    inv_id     = int(inv.get("invoice_id", 0))
+    inv_id     = int(inv.get("doc_id", 0))
     cust       = int(inv.get("cust_number", 0))
 
     # Build reason badges

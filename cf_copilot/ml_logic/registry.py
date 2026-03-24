@@ -18,7 +18,8 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
     GCS_BUCKET_NAME,
-    GCS_MODEL_PREFIX
+    GCS_MODEL_PREFIX,
+    CURRENT_DATE
 )
 
 from cf_copilot.ml_logic.data import (
@@ -259,8 +260,8 @@ def prepare_features(df: pd.DataFrame) -> tuple:
         Tuple of (X, cleaned_df) where X is the feature matrix
         and cleaned_df is the DataFrame after cleaning.
     """
-    cleaned_df = data_cleaning(df)
-    current_date = pd.Timestamp.now()
+    cleaned_df = data_cleaning(df,predict=True)
+    current_date = CURRENT_DATE
     # get historical data
     historical_df = load_historical_data()
     featured_df = engineer_features(cleaned_df, historical_df, current_date)

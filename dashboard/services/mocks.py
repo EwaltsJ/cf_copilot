@@ -34,7 +34,7 @@ def mock_predict(df: pd.DataFrame) -> pd.DataFrame:
         probs[b - 1] = max(probs[b - 1], 0.4)
         probs = probs / probs.sum()
         rows.append({
-            "invoice_id": row.get("doc_id", i),
+            "doc_id": row.get("doc_id", i),
             "predicted_bucket": b,
             "bucket_probabilities": {
                 f"week_{w}": round(float(p), 4) for w, p in enumerate(probs, 1)
