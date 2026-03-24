@@ -74,7 +74,11 @@ def _show_forecast_results(wf):
         </div>
     </div>""", unsafe_allow_html=True)
 
-    st.plotly_chart(build_cashflow_chart(wf), use_container_width=True)
+    st.plotly_chart(
+        build_cashflow_chart(wf),
+        use_container_width=True,
+        config={"displaylogo": False, "modeBarButtonsToRemove": ["lasso2d", "select2d"]},
+    )
 
     wf["Week"] = wf["week_bucket"].apply(lambda x: f"Week {x}")
     wf["Amount"] = wf["forecast_cash"].apply(lambda x: f"${x:,.0f}")

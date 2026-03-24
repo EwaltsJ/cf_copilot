@@ -143,11 +143,6 @@ def _render_api_results(pred: pd.DataFrame):
             st.session_state.selected_invoice = invoice
             _render_api_panel(invoice)
 
-            if st.button("Generate AI collection email →",
-                         key="btn_email", use_container_width=True):
-                st.session_state.step = max(st.session_state.step, 4)
-                st.rerun()
-
 
 def _api_display_df(top10: pd.DataFrame) -> pd.DataFrame:
     rows = []
@@ -324,11 +319,6 @@ def _render_mock_results(pred: pd.DataFrame):
             invoice = top10.iloc[idx].to_dict()
             st.session_state.selected_invoice = invoice
             _render_mock_panel(invoice)
-
-            if st.button("Generate AI collection email →",
-                         key="btn_email", use_container_width=True):
-                st.session_state.step = max(st.session_state.step, 4)
-                st.rerun()
 
 
 def _render_mock_panel(inv: dict):

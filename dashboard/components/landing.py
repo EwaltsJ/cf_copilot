@@ -9,6 +9,20 @@ from constants import ICONS
 
 def render_nav():
     st.markdown("""
+    <style>
+    .nav-link, .nav-cta {
+        display: inline-block !important;
+        padding: 0.6rem 1.2rem !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        position: relative !important;
+        z-index: 9999 !important;
+    }
+    /* remove qualquer overlay que possa estar por cima */
+    [data-testid="stMarkdown"] {
+        pointer-events: auto !important;
+    }
+    </style>
     <div class="nav">
         <div class="nav-logo">Cash Flow <span>Co-Pilot</span></div>
         <div class="nav-links">

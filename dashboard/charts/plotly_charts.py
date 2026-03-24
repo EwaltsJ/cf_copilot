@@ -34,7 +34,15 @@ def build_cashflow_chart(df):
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#6b7fa3", family="Inter"),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#6b7fa3")),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#6b7fa3"),
+            orientation="h",
+            yanchor="bottom",
+            y=-0.25,
+            xanchor="center",
+            x=0.5,
+        ),
         xaxis=dict(
             gridcolor="rgba(255,255,255,0.04)",
             tickfont=dict(color="#6b7fa3"),
@@ -45,8 +53,14 @@ def build_cashflow_chart(df):
             title="Amount ($M)",
             title_font=dict(color="#6b7fa3"),
         ),
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=320,
+        margin=dict(l=0, r=0, t=40, b=60),
+        height=340,
+        modebar=dict(
+            orientation="h",
+            bgcolor="rgba(0,0,0,0)",
+            color="#3d5278",
+            activecolor="#00d4aa",
+        ),
     )
     return fig
 
