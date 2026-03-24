@@ -8,7 +8,7 @@ NUMERIC_FEATURES = [
 ]
 
 CATEGORICAL_FEATURES = [
-    "invoice_currency", "document_type", "invoice_size_cat", "invoice_siz_cat_q"
+    "invoice_currency", "document_type", "invoice_size_cat", "invoice_size_cat_q"
 ]
 
 

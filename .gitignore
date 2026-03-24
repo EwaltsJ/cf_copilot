@@ -31,6 +31,13 @@ models/
 *.joblib
 *.h5
 
+# Saved metrics
+metrics/
+*.pickle
+*.json
+*.png
+*.txt
+
 # Any pickle files
 *.pickle
 *.pckl
