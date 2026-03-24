@@ -77,7 +77,7 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     df["doc_id"] = df["doc_id"].astype("int64")
 
     # Standardize categorical columns
-    cat_cols = ["business_code", "invoice_currency", "cust_payment_terms", "name_customer"]
+    cat_cols = ["business_code", "name_customer", "invoice_currency", "document type", "cust_payment_terms"]
     for c in cat_cols:
         df[c] = df[c].astype(str)
 
