@@ -3,6 +3,7 @@ import glob
 import time
 import pickle
 import joblib
+import json
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
@@ -27,32 +28,89 @@ from cf_copilot.ml_logic.data import (
     append_to_historical_data,
 )
 from cf_copilot.ml_logic.encoders import preprocess
+from cf_copilot.ml_logic.reporting import make_json_serializable
 
-def save_results(metrics : dict) -> None:
-    """
-    Persist params & metrics locally on the hard drive at
-    "{LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle"
-    - (unit 03 only) if MODEL_TARGET='mlflow', also persist them on MLflow
-    """
-    if MODEL_TARGET == "mlflow":
-        if metrics is not None:
-            try:
-                mlflow.log_metrics(metrics)
-                print("✅ Results saved on mlflow")
-            except:
-                print("⚠️ Could not log to MLflow")
 
+def save_results(
+    metrics: dict,
+    figures: dict | None = None,
+    artifacts: dict | None = None,
+    json_artifacts: dict | None = None
+) -> None:
+    """
+    Persist evaluation results locally and optionally to MLflow.
+
+    Local:
+    - metrics as pickle
+    - figures as PNG
+    - text artifacts as text files
+    - JSON artifacts as JSON files
+
+    MLflow:
+    - scalar metrics via mlflow.log_metrics
+    - optional figures via mlflow.log_figure
+
+    JSON artifacts are stored locally only.
+    """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
-    # Save metrics locally
+    metrics_dir = os.path.join(LOCAL_REGISTRY_PATH, "metrics")
+    artifacts_dir = os.path.join(metrics_dir, "artifacts", timestamp)
+    os.makedirs(metrics_dir, exist_ok=True)
+    os.makedirs(artifacts_dir, exist_ok=True)
+
+    # 1. Save metrics locally
     if metrics is not None:
-        metrics_dir = os.path.join(LOCAL_REGISTRY_PATH, "metrics")
-        os.makedirs(metrics_dir,exist_ok=True)
-        metrics_path = os.path.join(LOCAL_REGISTRY_PATH, "metrics", timestamp + ".pickle")
+        metrics_path = os.path.join(metrics_dir, f"{timestamp}.pickle")
         with open(metrics_path, "wb") as file:
             pickle.dump(metrics, file)
+        print(f"✅ Metrics saved locally: {metrics_path}")
 
-    print("✅ Results saved locally")
+    # 2. Save figures locally
+    if figures:
+        for figure_name, fig in figures.items():
+            figure_path = os.path.join(artifacts_dir, f"{figure_name}.png")
+            fig.savefig(figure_path, dpi=150, bbox_inches="tight")
+            print(f"✅ Figure saved locally: {figure_path}")
+
+    # 3. Save text artifacts locally
+    if artifacts:
+        for artifact_name, content in artifacts.items():
+            artifact_path = os.path.join(artifacts_dir, artifact_name)
+            with open(artifact_path, "w", encoding="utf-8") as file:
+                file.write(content)
+            print(f"✅ Artifact saved locally: {artifact_path}")
+
+    # 4. Save JSON artifacts locally
+    if json_artifacts:
+        for artifact_name, content in json_artifacts.items():
+            serializable_content = make_json_serializable(content)
+            artifact_path = os.path.join(artifacts_dir, artifact_name)
+            with open(artifact_path, "w", encoding="utf-8") as file:
+                json.dump(serializable_content, file, indent=2, ensure_ascii=False)
+            print(f"✅ JSON artifact saved locally: {artifact_path}")
+
+    # 5. Log metrics and figures to MLflow
+    if MODEL_TARGET == "mlflow":
+        try:
+            if metrics:
+                mlflow.log_metrics(metrics)
+
+            if figures:
+                for figure_name, fig in figures.items():
+                    mlflow.log_figure(fig, f"evaluation/{figure_name}.png")
+
+            if artifacts:
+                for artifact_name, content in artifacts.items():
+                    mlflow.log_text(content, f"evaluation/{artifact_name}")
+
+            print("✅ Results logged to MLflow")
+        except Exception as e:
+            print("⚠️ Could not log results to MLflow")
+            print(e)
+
+    print("✅ Results persistence complete")
+
 
 def save_model(model=None) -> None:
     """Save the fitted pipeline locally, and optionally to GCS."""
@@ -80,7 +138,7 @@ def save_model(model=None) -> None:
 
             #with mlflow.start_run():
             mlflow.sklearn.log_model(
-                    sk_model=model_path,
+                    sk_model=model,
                     artifact_path="model",
                     registered_model_name=MLFLOW_MODEL_NAME
                 )
@@ -98,9 +156,8 @@ def load_model(stage: str = "Production"):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         try:
             model_uri = f"models:/{MLFLOW_MODEL_NAME}/{stage}"
-            mlflow_model = mlflow.sklearn.load_model(model_uri)
+            model = mlflow.sklearn.load_model(model_uri)
             print("✅ Model loaded from MLflow")
-            model = joblib.load(mlflow_model)
             return model
         except Exception as e:
             print("❌ No model found in MLflow registry, falling back to local")
@@ -144,6 +201,7 @@ def load_model(stage: str = "Production"):
     else:
         return None
 
+
 def mlflow_transition_model(current_stage: str, new_stage: str) -> None:
     """
     Transition the latest model from the `current_stage` to the
@@ -170,6 +228,7 @@ def mlflow_transition_model(current_stage: str, new_stage: str) -> None:
 
     return None
 
+
 def mlflow_run(func):
     """
     Generic function to log params and results to MLflow
@@ -191,6 +250,7 @@ def mlflow_run(func):
 
         return results
     return wrapper
+
 
 def prepare_features(df: pd.DataFrame) -> tuple:
     """Clean raw invoice data and engineer features for prediction.
