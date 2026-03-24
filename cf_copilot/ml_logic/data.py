@@ -58,6 +58,10 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     Returns:
         A tuple (model_df, demo_df).
     """
+    # to remove warning of SettingWithCopyWarning:
+    df = df.copy()
+
+    # drop duplicates and name stripping
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
 
@@ -93,10 +97,32 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
         'baseline_create_date': 'invoice_sent',
     }, inplace=True)
 
+    # sort values
     df = df.sort_values("invoice_sent").reset_index(drop=True)
 
+    # data conversion
+    df["business_year"] = df["business_year"].round().astype("int64")
+
+    # converting cad to usd
+    cad_to_usd_by_year = {
+        2018 : 0.771,
+        2019 : 0.754,
+        2020 : 0.745
+    }
+    def convert_cad_to_usd_amount(row):
+        if row['invoice_currency'].strip().upper() == "USD":
+            return row["total_open_amount"]
+        elif row['invoice_currency'].strip().upper() == "CAD":
+            year = int(row['business_year'])
+            rate = cad_to_usd_by_year.get(year,0.75)
+            return row["total_open_amount"] * rate
+        else:
+            return row["total_open_amount"]
+
+    df["total_open_amount"] = df.apply(convert_cad_to_usd_amount,axis=1)
+
+    # final check
     model_df = df[df["invoice_paid"].notnull()]
-    #demo_df = df
 
     # Save processed frames
     base_dir = Path(__file__).resolve().parents[2]
@@ -104,7 +130,6 @@ def data_cleaning(df: pd.DataFrame) -> tuple:
     raw_data_dir.mkdir(parents=True, exist_ok=True)
 
     model_df.to_csv(raw_data_dir / "model_df.csv", index=False)
-    #demo_df.to_csv(raw_data_dir / "demo_df.csv", index=False)
 
     #print(f"Saved model_df ({len(model_df)} rows) and demo_df ({len(demo_df)} rows)")
     print(f"Saved model_df ({len(model_df)} rows)")
