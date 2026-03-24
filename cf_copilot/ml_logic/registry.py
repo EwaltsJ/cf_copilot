@@ -17,7 +17,8 @@ from cf_copilot.params import (
     MLFLOW_EXPERIMENT,
     MLFLOW_MODEL_NAME,
     GCS_BUCKET_NAME,
-    GCS_MODEL_PREFIX
+    GCS_MODEL_PREFIX,
+    CURRENT_DATE
 )
 
 from cf_copilot.ml_logic.data import (
@@ -27,8 +28,6 @@ from cf_copilot.ml_logic.data import (
     append_to_historical_data,
 )
 from cf_copilot.ml_logic.encoders import preprocess
-
-CURRENT_DATE=pd.to_datetime('2020-05-22')
 
 def save_results(metrics : dict) -> None:
     """
