@@ -10,6 +10,39 @@ from services.mocks import mock_rag
 from charts.plotly_charts import build_risk_gauge
 
 
+def _fmt_id(val) -> str:
+    try:
+        return str(int(float(val)))
+    except (ValueError, TypeError):
+        return str(val)
+
+def _fmt_date(val) -> str:
+    try:
+        s = str(int(float(val)))
+        if len(s) == 8:
+            return f"{s[:4]}-{s[4:6]}-{s[6:]}"
+    except (ValueError, TypeError):
+        pass
+    return str(val)
+
+def _fix_body(text: str, invoice: dict) -> str:
+    raw_id   = str(invoice.get("doc_id", ""))
+    raw_date = str(invoice.get("due_in_date", ""))
+    if raw_id and raw_id != "nan":
+        text = text.replace(raw_id, _fmt_id(raw_id))
+    if raw_date and raw_date != "nan":
+        text = text.replace(raw_date, _fmt_date(raw_date))
+    return text
+
+
+def _fmt_id(val) -> str:
+    try:
+        return str(int(float(val)))
+    except (ValueError, TypeError):
+        return str(val)
+
+
+
 def render_step_email():
     st.markdown(f"""
     <div class="step-block">
@@ -49,10 +82,8 @@ def render_step_email():
                 st.session_state.step = max(st.session_state.step, 5)
 
         if st.session_state.ai_result is not None:
-            _render_email_result(st.session_state.ai_result)
+            _render_email_result(st.session_state.ai_result, invoice)
 
-
-# ── Internal helpers ──────────────────────────────────────────────────
 
 def _render_invoice_summary(invoice: dict, bucket: int, risk_color: str):
     st.markdown(f"""
@@ -61,7 +92,7 @@ def _render_invoice_summary(invoice: dict, bucket: int, risk_color: str):
                     letter-spacing:0.06em;margin-bottom:1rem;">Selected invoice</div>
         <div style="font-family:'DM Mono',monospace;font-size:0.82rem;color:#c9d4e8;line-height:2.2;">
             <span style="color:#6b7fa3;">Invoice ID</span><br>
-            <b>{invoice.get('doc_id','N/A')}</b><br>
+            <b>{_fmt_id(invoice.get('doc_id','N/A'))}</b><br>
             <span style="color:#6b7fa3;">Customer</span><br>
             <b>{invoice.get('name_customer','N/A')}</b><br>
             <span style="color:#6b7fa3;">Amount</span><br>
@@ -76,7 +107,7 @@ def _render_invoice_summary(invoice: dict, bucket: int, risk_color: str):
     </div>""", unsafe_allow_html=True)
 
 
-def _render_email_result(res: dict):
+def _render_email_result(res: dict, invoice: dict):
     pill_map = {
         "friendly": "#00d4aa", "neutral": "#4d9fff", "firm": "#ff4d6d",
         "low": "#00d4aa", "medium": "#ffa94d", "high": "#ff4d6d", "critical": "#ff0055",
@@ -100,11 +131,11 @@ def _render_email_result(res: dict):
                 <div style="font-size:0.9rem;font-weight:600;color:{color};">{val}</div>
             </div>""", unsafe_allow_html=True)
 
-    st.markdown(f"<br>**Subject:** {res.get('subject', '')}", unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="email-box">{res.get("email_body", "")}</div>',
-        unsafe_allow_html=True,
-    )
+    subject = _fix_body(res.get("subject", ""), invoice)
+    body    = _fix_body(res.get("email_body", ""), invoice)
+
+    st.markdown(f"<br>**Subject:** {subject}", unsafe_allow_html=True)
+    st.markdown(f'<div class="email-box">{body}</div>', unsafe_allow_html=True)
     st.markdown(f"""<br>
     <div style="background:rgba(0,212,170,0.04);border:1px solid rgba(0,212,170,0.12);
                 border-radius:8px;padding:0.8rem;font-size:0.82rem;color:#6b7fa3;">

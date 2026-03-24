@@ -19,6 +19,22 @@ from services.api import call_prioritise_invoices
 from services.mocks import mock_predict
 
 
+def _fmt_id(val) -> str:
+    try:
+        return str(int(float(val)))
+    except (ValueError, TypeError):
+        return str(val)
+
+def _fmt_date(val) -> str:
+    try:
+        s = str(int(float(val)))
+        if len(s) == 8:
+            return f"{s[:4]}-{s[4:6]}-{s[6:]}"
+    except (ValueError, TypeError):
+        pass
+    return str(val)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # PUBLIC
 # ═══════════════════════════════════════════════════════════════════════
@@ -144,6 +160,7 @@ def _render_api_results(pred: pd.DataFrame):
             _render_api_panel(invoice)
 
 
+
 def _api_display_df(top10: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for _, r in top10.iterrows():
@@ -152,7 +169,6 @@ def _api_display_df(top10: pd.DataFrame) -> pd.DataFrame:
             "Invoice":  str(int(r["invoice_id"])),
             "Customer": str(int(r["cust_number"])),
             "Amount":   f"${float(r['total_open_amount']):,.0f}",
-            "Days OD":  int(r["days_overdue"]),
             "Risk":     r["risk_category"],
         })
     return pd.DataFrame(rows)
@@ -279,11 +295,10 @@ def _render_mock_results(pred: pd.DataFrame):
         for _, r in top10.iterrows():
             b = int(r.get("predicted_bucket", 3))
             rows.append({
-                "Invoice":  str(r.get("doc_id", "—")),
+                "Invoice":  _fmt_id(r.get("doc_id", "—")),
                 "Customer": str(r.get("name_customer", "—"))[:22],
                 "Amount":   f"${float(r.get('total_open_amount', 0)):,.0f}",
-                "Due":      str(r.get("due_in_date", "—")),
-                "Days OD":  int(r.get("days_past_due", 0)),
+                "Due":      _fmt_date(r.get("due_in_date", "—")),
                 "Risk":     RISK_LABELS.get(b, "—"),
                 "Week":     b,
             })
@@ -321,6 +336,7 @@ def _render_mock_results(pred: pd.DataFrame):
             _render_mock_panel(invoice)
 
 
+
 def _render_mock_panel(inv: dict):
     """Right-side detail card for mock/fallback data."""
     from constants import RISK_LABELS, RISK_COLORS
@@ -356,7 +372,7 @@ def _render_mock_panel(inv: dict):
                     justify-content:space-between;margin-bottom:1.2rem;">
             <div>
                 <div style="font-size:1rem;font-weight:700;color:#ffffff;">
-                    {inv.get('doc_id', '—')}</div>
+                    {_fmt_id(inv.get('doc_id', '—'))}</div>
                 <div style="font-size:0.85rem;color:#6b7fa3;margin-top:0.2rem;">
                     {inv.get('name_customer', 'Unknown')}</div>
             </div>
@@ -399,6 +415,6 @@ def _render_mock_panel(inv: dict):
                     letter-spacing:0.07em;margin-bottom:0.8rem;">Due date</div>
         <div style="font-family:'DM Mono',monospace;font-size:0.88rem;
                     color:#c9d4e8;margin-bottom:1.4rem;">
-            {inv.get('due_in_date', '—')}</div>
+            {_fmt_date(inv.get('due_in_date', '—'))}</div>
     </div>
     """)
