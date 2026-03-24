@@ -11,16 +11,7 @@ from cf_copilot.cashflow_prediction.registry import predict_cashflow
 from cf_copilot.collection_ranking.invoices_ranker import get_priority_invoices
 
 from cf_copilot.rag.script_generator import generate_script, load_vector_store
-
-
-# -------------------------------------------------------------------
-# Paths for the RAG playbook / vector store
-# Adjust these 2 paths if your folders live somewhere else
-# -------------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parents[1]
-PLAYBOOK_PATH = BASE_DIR / "data" / "playbook"
-CHROMA_PATH = BASE_DIR / "data" / "chroma_db"
-CURRENT_DATE=pd.to_datetime('2020-05-22')
+from cf_copilot.params import CHROMA_PATH, CURRENT_DATE
 
 @asynccontextmanager
 async def lifespan(app):
