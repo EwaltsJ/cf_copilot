@@ -8,14 +8,10 @@ import shutil
 from google.cloud import storage as gcs_storage
 from cf_copilot.params import (
     ENV,
-    MODEL_TARGET,
     GCS_BUCKET_NAME,
     GCS_HISTORICAL_DATA_PATH,
     LOCAL_HISTORICAL_DATA_PATH,
 )
-
-CURRENT_DATE=pd.to_datetime('2020-05-22')
-
 
 def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
     """Load invoice dataset from local raw_data folder, or download from Kaggle.
