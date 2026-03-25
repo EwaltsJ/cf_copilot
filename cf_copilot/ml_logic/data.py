@@ -164,6 +164,12 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     snapshot["due_month"] = snapshot["due_in_date"].dt.month
     snapshot["days_past_due"] = (current_date - snapshot["due_in_date"]).dt.days
 
+    # Sin/cos cyclic encoding for month
+    snapshot["invoice_month_sin"] = np.sin(2 * np.pi * snapshot["invoice_month"] / 12)
+    snapshot["invoice_month_cos"] = np.cos(2 * np.pi * snapshot["invoice_month"] / 12)
+    snapshot["due_month_sin"]     = np.sin(2 * np.pi * snapshot["due_month"] / 12)
+    snapshot["due_month_cos"]     = np.cos(2 * np.pi * snapshot["due_month"] / 12)
+
     # B) Customer behaviour features
     historical = df_full[df_full["invoice_paid"] <= current_date].copy()
     historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)

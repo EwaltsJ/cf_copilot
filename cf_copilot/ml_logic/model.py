@@ -14,6 +14,7 @@ NUMERIC_FEATURES = [
     "invoice_month", "due_month", "days_past_due", "customer_avg_delay",
     "late_payment_ratio", "prev_transaction_count", "days_since_last_invoice",
     "customer_risk_score", "invoice_amount", "invoice_amount_log",
+    "invoice_month_sin","invoice_month_cos","due_month_sin","due_month_cos"
 ]
 
 CATEGORICAL_FEATURES = [
