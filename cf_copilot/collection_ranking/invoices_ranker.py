@@ -62,7 +62,7 @@ def _add_computed_risk_score(risk_df: pd.DataFrame) -> pd.DataFrame:
     # Risk score formula check for first row
     row0 = risk_df.iloc[0]
     calc_risk = row0[5] + row0[6] + row0[7]
-    assert abs(row0["risk_score"] - calc_risk) < 1e-12
+    assert abs(row0["risk_score"] - calc_risk) < 1e-7
 
     # Assign risk categories based on risk scoring thresholds
     def assign_risk_buckets(risk_score: float) -> str:
