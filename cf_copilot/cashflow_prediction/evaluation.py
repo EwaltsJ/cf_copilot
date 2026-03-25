@@ -119,8 +119,10 @@ def evaluate_forecast_holdout(
         return {}, {}
 
     per_reference_results = []
-    class_to_index = {int(c): i for i, c in enumerate(model.classes_)}
-
+    if np.array_equal(np.sort(model.classes_), np.array([0, 1, 2, 3, 4, 5, 6])):
+        class_to_index = {int(c) + 1: i for i, c in enumerate(model.classes_)}
+    else:
+        class_to_index = {int(c): i for i, c in enumerate(model.classes_)}
     for reference_date, snapshot_df in test_df.groupby("reference_date"):
         snapshot_df = snapshot_df.copy()
         if len(snapshot_df) == 0:

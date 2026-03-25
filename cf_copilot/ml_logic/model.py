@@ -55,15 +55,10 @@ def initialize_model() -> Pipeline:
         reg_alpha=0.587,
         reg_lambda=1.931,
         subsample=0.882,
-        tree_method="hist",
-        eval_metric="mlogloss",
-        random_state=42,
-        n_jobs=-1,
     )
 
     pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
-        ("variance", VarianceThreshold(threshold=0.05)),
         ("classifier", classifier),
     ])
 
