@@ -6,10 +6,19 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OrdinalEncoder
-from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.feature_selection import VarianceThreshold
 
-from cf_copilot.ml_logic.encoders import NUMERIC_FEATURES, CATEGORICAL_FEATURES
+NUMERIC_FEATURES = [
+    "business_year", "invoice_age_days", "days_until_due", "pay_terms_days",
+    "invoice_month", "due_month", "days_past_due", "customer_avg_delay",
+    "late_payment_ratio", "prev_transaction_count", "days_since_last_invoice",
+    "customer_risk_score", "invoice_amount", "invoice_amount_log",
+]
 
+CATEGORICAL_FEATURES = [
+    "invoice_currency", "document_type", "invoice_size_cat", "invoice_size_cat_q"
+]
 
 def initialize_model() -> Pipeline:
     """Initialize a RandomForestClassifier inside a sklearn Pipeline.
@@ -35,19 +44,25 @@ def initialize_model() -> Pipeline:
         remainder="drop",
     )
 
-    classifier = RandomForestClassifier(
-        n_estimators=467,
-        max_depth=18,
-        min_samples_split=6,
-        min_samples_leaf=2,
-        max_features= 0.35,
-        class_weight="balanced",
+    classifier = XGBClassifier(
+        colsample_bytree=0.727,
+        gamma=0.059,
+        learning_rate=0.025,
+        max_depth=7,
+        min_child_weight=2,
+        n_estimators=352,
+        reg_alpha=0.587,
+        reg_lambda=1.931,
+        subsample=0.882,
+        tree_method="hist",
+        eval_metric="mlogloss",
         random_state=42,
         n_jobs=-1,
     )
 
     pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
+        ("variance", VarianceThreshold(threshold=0.05)),
         ("classifier", classifier),
     ])
 
