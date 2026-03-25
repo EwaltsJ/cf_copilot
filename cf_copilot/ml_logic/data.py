@@ -242,9 +242,8 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
 
         snapshot["reference_date"] = current
         snapshot["days_to_payment"] = (snapshot["invoice_paid"] - current).dt.days
-        snapshot["week_bucket"] = np.ceil(snapshot["days_to_payment"] / 7).astype(int)
-        snapshot["week_bucket"] = snapshot["week_bucket"].clip(lower=1)
-        snapshot.loc[snapshot["week_bucket"] > 7, "week_bucket"] = 7
+        snapshot["week_bucket"] = np.floor(snapshot["days_to_payment"] / 7).astype(int)
+        snapshot["week_bucket"] = snapshot["week_bucket"].clip(lower=0, upper=6)
 
         all_snapshots.append(snapshot)
         current += stride

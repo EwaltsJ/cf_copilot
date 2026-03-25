@@ -1,17 +1,5 @@
 import pandas as pd
 
-NUMERIC_FEATURES = [
-    "business_year", "invoice_age_days", "days_until_due", "pay_terms_days",
-    "invoice_month", "due_month", "days_past_due", "customer_avg_delay",
-    "late_payment_ratio", "prev_transaction_count", "days_since_last_invoice",
-    "customer_risk_score", "invoice_amount", "invoice_amount_log",
-]
-
-CATEGORICAL_FEATURES = [
-    "invoice_currency", "document_type", "invoice_size_cat", "invoice_size_cat_q"
-]
-
-
 def preprocess(df: pd.DataFrame, inference: bool = False) -> tuple:
     """Preprocess a DataFrame for model training or inference.
 
