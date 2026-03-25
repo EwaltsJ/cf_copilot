@@ -19,10 +19,11 @@ def build_actual_weekly_cf(invoices_df: pd.DataFrame, reference_date) -> pd.Data
     # Create week buckets 1-6 based on actual payment days from reference date
     df["reference_date"] = reference_date
     df["days_to_payment"] = (df["invoice_paid"] - reference_date).dt.days
-    df["week_bucket"] = np.ceil(df["days_to_payment"] / 7).astype(int)
-    df["week_bucket"] = df["week_bucket"].clip(lower=1)
-    df.loc[df["week_bucket"] > 6, "week_bucket"] = 7
-    df = df[df["week_bucket"].between(1,6)].copy()
+    df["week_bucket"] = np.floor(df["days_to_payment"] / 7).astype(int)
+    df["week_bucket"] = df["week_bucket"].clip(lower=0, upper=6)
+    df["week_bucket"] = df["week_bucket"] + 1
+    df = df[df["week_bucket"].between(1, 6)].copy()
+
 
     # Aggregate actual cash flow per week bucket 1-6
     actual_cf = (
