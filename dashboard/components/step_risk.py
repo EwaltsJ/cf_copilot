@@ -169,6 +169,7 @@ def _api_display_df(top10: pd.DataFrame) -> pd.DataFrame:
             "Invoice":  str(int(r["invoice_id"])),
             "Customer": str(int(r["cust_number"])),
             "Amount":   f"${float(r['total_open_amount']):,.0f}",
+            "Days OD":  int(r["days_overdue"]),
             "Risk":     r["risk_category"],
         })
     return pd.DataFrame(rows)
@@ -295,10 +296,11 @@ def _render_mock_results(pred: pd.DataFrame):
         for _, r in top10.iterrows():
             b = int(r.get("predicted_bucket", 3))
             rows.append({
-                "Invoice":  _fmt_id(r.get("doc_id", "—")),
+                 "Invoice":  str(r.get("doc_id", "—")),
                 "Customer": str(r.get("name_customer", "—"))[:22],
                 "Amount":   f"${float(r.get('total_open_amount', 0)):,.0f}",
-                "Due":      _fmt_date(r.get("due_in_date", "—")),
+                "Due":      str(r.get("due_in_date", "—")),
+                "Days OD":  int(r.get("days_past_due", 0)),
                 "Risk":     RISK_LABELS.get(b, "—"),
                 "Week":     b,
             })
