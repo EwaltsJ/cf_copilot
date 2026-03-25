@@ -17,9 +17,12 @@ _CSS = """
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .main { background-color: #080f1a; }
 .stApp { background: #080f1a; }
-section[data-testid="stSidebar"] { display: none; }
-header[data-testid="stHeader"] { background: transparent; }
-div[data-testid="stDecoration"] { display: none; }
+section[data-testid="stSidebar"] { display: none !important; }
+header[data-testid="stHeader"] { display: none !important; }
+div[data-testid="stDecoration"] { display: none !important; }
+#MainMenu { display: none !important; }
+div[data-testid="stToolbar"] { display: none !important; }
+div[data-testid="stStatusWidget"] { display: none !important; }
 .block-container { padding-top: 0 !important; max-width: 100% !important; }
 
 /* Override Streamlit's global a{} styles inside nav */
@@ -33,29 +36,41 @@ div.nav a.nav-cta:visited, div.nav a.nav-cta:active {
     text-decoration: none !important;
 }
 
-/* Nav */
+/* Nav — fix Streamlit wrapper stacking */
+[data-testid="stMarkdown"]:has(.nav) {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+}
 .nav {
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 3rem; height: 64px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
-    background: rgba(8,15,26,0.95); position: sticky; top: 0; z-index: 100;
+    background: rgba(8,15,26,0.95); position: sticky; top: 0; z-index: 1000;
     backdrop-filter: blur(12px);
+    pointer-events: auto !important;
 }
 .nav-logo { font-size: 1.15rem; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; }
 .nav-logo span { color: #00d4aa; }
-.nav-links { display: flex; gap: 0.25rem; align-items: center; }
+.nav-links { display: flex; gap: 0.25rem; align-items: center; pointer-events: auto !important; }
 .nav-link {
     font-size: 0.875rem !important; font-weight: 500 !important; color: #6b7fa3 !important;
     text-decoration: none !important;
-    padding: 0.45rem 0.85rem; border-radius: 8px; letter-spacing: 0.01em;
+    padding: 0.75rem 1.1rem; border-radius: 8px; letter-spacing: 0.01em;
+    display: inline-block !important;
+    position: relative !important; z-index: 1001 !important;
+    pointer-events: auto !important; cursor: pointer !important;
     transition: color 0.2s ease, background 0.2s ease;
 }
 .nav-link:hover { color: #ffffff !important; background: rgba(255,255,255,0.05); }
 .nav-cta {
     font-size: 0.875rem !important; font-weight: 600 !important; color: #080f1a !important;
     background: #00d4aa; text-decoration: none !important;
-    padding: 0.45rem 1.2rem; border-radius: 8px; margin-left: 0.5rem;
-    letter-spacing: 0.01em; display: inline-block;
+    padding: 0.75rem 1.4rem; border-radius: 8px; margin-left: 0.5rem;
+    letter-spacing: 0.01em; display: inline-block !important;
+    position: relative !important; z-index: 1001 !important;
+    pointer-events: auto !important; cursor: pointer !important;
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .nav-cta:hover { background: #00f0c0 !important; color: #080f1a !important; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,212,170,0.35); }
@@ -65,7 +80,7 @@ div.nav a.nav-cta:visited, div.nav a.nav-cta:active {
     position: relative; min-height: 82vh;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    text-align: center; overflow: hidden; padding: 4rem 2rem;
+    text-align: center; overflow: visible; padding: 4rem 2rem;
 }
 .hero-badge {
     display: inline-block; border: 1px solid rgba(0,212,170,0.4);
