@@ -86,8 +86,62 @@ def _show_forecast_results(wf):
         lambda x: f"{x:.1f}%"
     )
     wf["Cumulative"] = wf["forecast_cash"].cumsum().apply(lambda x: f"${x:,.0f}")
-    st.dataframe(
-        wf[["Week", "Amount", "Share", "Cumulative"]],
-        use_container_width=True,
-        hide_index=True,
+
+    rows_html = ""
+    for _, row in wf[["Week", "Amount", "Share", "Cumulative"]].iterrows():
+        rows_html += (
+            "<tr>"
+            "<td class='col-week'>" + str(row["Week"]) + "</td>"
+            "<td class='col-amount'>" + str(row["Amount"]) + "</td>"
+            "<td class='col-share'>" + str(row["Share"]) + "</td>"
+            "<td class='col-cumul'>" + str(row["Cumulative"]) + "</td>"
+            "</tr>"
+        )
+
+    table_html = (
+        "<style>"
+        ".forecast-table-wrap{"
+            "background:rgba(255,255,255,0.03);"
+            "border:1px solid rgba(255,255,255,0.07);"
+            "border-radius:10px;"
+            "overflow:hidden;"
+            "margin-top:1rem;"
+        "}"
+        ".forecast-table{"
+            "width:100%;"
+            "border-collapse:collapse;"
+            "font-family:'JetBrains Mono','Fira Code',monospace;"
+            "font-size:0.82rem;"
+        "}"
+        ".forecast-table thead tr{"
+            "background:rgba(255,255,255,0.04);"
+            "border-bottom:1px solid rgba(255,255,255,0.10);"
+        "}"
+        ".forecast-table thead th{"
+            "padding:0.65rem 1rem;"
+            "text-align:left;"
+            "color:rgba(255,255,255,0.40);"
+            "font-weight:500;"
+            "letter-spacing:0.08em;"
+            "text-transform:uppercase;"
+            "font-size:0.72rem;"
+        "}"
+        ".forecast-table tbody tr{"
+            "border-bottom:1px solid rgba(255,255,255,0.05);"
+        "}"
+        ".forecast-table tbody tr:last-child{border-bottom:none;}"
+        ".forecast-table tbody tr:hover{background:rgba(255,255,255,0.04);}"
+        ".forecast-table tbody td{padding:0.60rem 1rem;color:rgba(255,255,255,0.80);}"
+        ".col-week{color:rgba(255,255,255,0.40) !important;font-size:0.75rem;letter-spacing:0.05em;}"
+        ".col-amount{color:#2ecc9a !important;font-weight:600;}"
+        "</style>"
+        "<div class='forecast-table-wrap'>"
+        "<table class='forecast-table'>"
+        "<thead><tr>"
+        "<th>Week</th><th>Amount</th><th>Share</th><th>Cumulative</th>"
+        "</tr></thead>"
+        "<tbody>" + rows_html + "</tbody>"
+        "</table></div>"
     )
+
+    st.markdown(table_html, unsafe_allow_html=True)
