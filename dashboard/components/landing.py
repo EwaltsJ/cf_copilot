@@ -102,15 +102,29 @@ def render_how_it_works():
         with col:
             st.markdown(f"""
             <div class="feat-card-hover">
-                <div class="card-num">{num}</div>
-                <div style="width:44px;height:44px;background:rgba(0,212,170,0.12);
-                            border:1px solid rgba(0,212,170,0.25);border-radius:12px;
+                <div class="card-num" style="color:rgba(0,212,170,0.55);">{num}</div>
+                <div style="width:44px;height:44px;background:rgba(0,212,170,0.15);
+                            border:1px solid rgba(0,212,170,0.35);border-radius:12px;
                             display:flex;align-items:center;justify-content:center;
                             margin-bottom:1.2rem;">{icon}</div>
-                <div class="card-title">{title}</div><br>
-                <div class="card-desc">{desc}</div>
+                <div class="card-title" style="color:#ffffff;">{title}</div>
+                <div class="card-desc" style="color:#c8d4e8;">{desc}</div>
             </div>
             """, unsafe_allow_html=True)
+    #for i, (num, icon, title, desc) in enumerate(cards):
+     #   col = row1[i] if i < 2 else row2[i - 2]
+      #  with col:
+       #     st.markdown(f"""
+        #    <div class="feat-card-hover">
+         #       <div class="card-num">{num}</div>
+          #      <div style="width:44px;height:44px;background:rgba(0,212,170,0.12);
+           #                 border:1px solid rgba(0,212,170,0.25);border-radius:12px;
+            #                display:flex;align-items:center;justify-content:center;
+             #               margin-bottom:1.2rem;">{icon}</div>
+              #  <div class="card-title">{title}</div><br>
+               # <div class="card-desc">{desc}</div>
+            #</div>
+            #""", unsafe_allow_html=True)
 
 
 def render_cta_banner():
