@@ -173,10 +173,15 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     # B) Customer behaviour features
     historical = df_full[df_full["invoice_paid"] <= current_date].copy()
     historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)
-    avg_delay = historical.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
 
+    # Existing aggregates
+    avg_delay = historical.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
     historical["is_late"] = (historical["invoice_paid"] > historical["due_in_date"]).astype(int)
     late_ratio = historical.groupby("cust_number")["is_late"].mean().rename("late_payment_ratio")
+
+    # NEW: variability and extremes of delay
+    delay_std = historical.groupby("cust_number")["delay"].std().fillna(0).rename("customer_delay_std")
+    max_delay = historical.groupby("cust_number")["delay"].max().fillna(0).rename("customer_max_delay")
 
     before_current = df_full[df_full["invoice_sent"] < current_date]
     prev_counts = before_current.groupby("cust_number").size().rename("prev_transaction_count")
@@ -187,8 +192,13 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
         .rename("last_invoice_date")
     )
 
-    customer_features = pd.concat([avg_delay, late_ratio, prev_counts, last_invoice], axis=1)
+    # Add new columns into customer_features
+    customer_features = pd.concat(
+        [avg_delay, late_ratio, prev_counts, last_invoice, delay_std, max_delay],
+        axis=1
+    )
     snapshot = snapshot.merge(customer_features, on="cust_number", how="left")
+
 
     snapshot["customer_risk_score"] = (
         0.7 * snapshot["late_payment_ratio"].fillna(0)
