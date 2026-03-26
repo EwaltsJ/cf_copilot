@@ -46,15 +46,22 @@ def initialize_model() -> Pipeline:
     )
 
     classifier = XGBClassifier(
-        colsample_bytree=0.727,
-        gamma=0.059,
-        learning_rate=0.025,
+        objective="multi:softprob",
+        num_class=7,
+        eval_metric="mlogloss",
+        random_state=42,
+        n_jobs=4,
+        tree_method="hist",
+        verbosity=0,
+        colsample_bytree=0.7265477506155757,
+        gamma=0.058794858725743554,
+        learning_rate=0.024522728891053808,
         max_depth=7,
         min_child_weight=2,
         n_estimators=352,
-        reg_alpha=0.587,
-        reg_lambda=1.931,
-        subsample=0.882,
+        reg_alpha=0.5867511656638482,
+        reg_lambda=1.930510614528276,
+        subsample=0.8821102743060054,
     )
 
     pipeline = Pipeline(steps=[
