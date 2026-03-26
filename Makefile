@@ -175,6 +175,14 @@ docker_deploy:
 		--region $(GCP_REGION) \
 		--env-vars-file .env.yaml
 
+docker_redeploy:
+	$(eval IMAGE := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/$(DOCKER_REPO_NAME)/$(DOCKER_IMAGE_NAME))
+	docker build --platform linux/amd64 -t $(IMAGE) .
+	docker push $(IMAGE)
+	gcloud run deploy cf-copilot \
+		--image $(IMAGE) \
+		--region $(GCP_REGION)
+
 #======================#
 #      GCP CLEANUP     #
 #======================#
