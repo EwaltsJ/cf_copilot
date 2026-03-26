@@ -164,6 +164,15 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     snapshot["due_month"] = snapshot["due_in_date"].dt.month
     snapshot["days_past_due"] = (current_date - snapshot["due_in_date"]).dt.days
 
+    # NEW: weekday features
+    snapshot["invoice_weekday"] = snapshot["invoice_sent"].dt.weekday  # 0=Mon..6=Sun
+    snapshot["due_weekday"] = snapshot["due_in_date"].dt.weekday
+    snapshot["reference_weekday"] = current_date.weekday()
+
+    # NEW: simple month-end flag for due date
+    last_day_of_due_month = snapshot["due_in_date"] + pd.offsets.MonthEnd(0)
+    snapshot["is_due_month_end"] = (snapshot["due_in_date"] >= last_day_of_due_month - pd.Timedelta(days=3)).astype(int)
+
     # Sin/cos cyclic encoding for month
     snapshot["invoice_month_sin"] = np.sin(2 * np.pi * snapshot["invoice_month"] / 12)
     snapshot["invoice_month_cos"] = np.cos(2 * np.pi * snapshot["invoice_month"] / 12)
