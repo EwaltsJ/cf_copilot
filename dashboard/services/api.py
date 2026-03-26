@@ -85,7 +85,7 @@ def call_prioritise_invoices(file_bytes, current_date: str):
 def call_rag_script(invoice: dict):
     """POST /rag_script — returns (dict | None, error_msg | None)."""
     try:
-        r = requests.post(f"{API_URL}/rag_script", json=invoice, timeout=30)
+        r = requests.post(f"{API_URL}/rag_script", json=invoice, timeout=60)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.ConnectionError:
