@@ -9,22 +9,13 @@ from sklearn.preprocessing import OrdinalEncoder
 from xgboost import XGBClassifier
 from sklearn.feature_selection import VarianceThreshold
 
-NUMERIC_FEATURES = [
-    #"business_year",
-    "invoice_age_days", "days_until_due", "pay_terms_days",
-    #"invoice_month", "due_month",
-    "days_past_due", "customer_avg_delay",
-    "late_payment_ratio", "prev_transaction_count", "days_since_last_invoice",
-    "customer_risk_score",
-    #"invoice_amount",
-    "invoice_amount_log",
-    "invoice_month_sin","invoice_month_cos","due_month_sin","due_month_cos",
-    #"customer_delay_std", "customer_max_delay",
-    "invoice_weekday","due_weekday","reference_weekday","is_due_month_end",
-]
 
+NUMERIC_FEATURES = [
+    "invoice_age_days","days_until_due","pay_terms_days","customer_avg_delay",
+    "days_since_last_invoice","invoice_amount_log","invoice_month_sin",
+]
 CATEGORICAL_FEATURES = [
-    "invoice_currency", "document_type", "invoice_size_cat", "invoice_size_cat_q"
+    #"invoice_currency", #"document_type", #"invoice_size_cat", "invoice_size_cat_q"
 ]
 
 def initialize_model() -> Pipeline:
