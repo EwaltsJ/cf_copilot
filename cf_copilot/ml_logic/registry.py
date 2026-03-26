@@ -266,7 +266,8 @@ def prepare_features(df: pd.DataFrame) -> tuple:
     historical_df = load_historical_data()
     featured_df = engineer_features(cleaned_df, historical_df, current_date)
 
-    #featured_df = engineer_features(cleaned_df, cleaned_df, current_date)
+    append_to_historical_data(df, featured_df, historical_df)
+
     X, _ = preprocess(featured_df, inference=True)
     return X, cleaned_df
 
@@ -289,5 +290,4 @@ def predict(model, df: pd.DataFrame) -> dict:
     cleaned_df = cleaned_df.copy()
     cleaned_df["predicted_week_bucket"] = preds
 
-    append_to_historical_data(cleaned_df)
     return {"week_bucket": preds, "probabilities": probas}

@@ -11,6 +11,7 @@ from cf_copilot.params import (
     GCS_BUCKET_NAME,
     GCS_HISTORICAL_DATA_PATH,
     LOCAL_HISTORICAL_DATA_PATH,
+    CURRENT_DATE
 )
 
 def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
@@ -329,13 +330,11 @@ def load_historical_data() -> pd.DataFrame:
     #print(f"✅ Historical data loaded locally ({df.shape[0]} rows) from {local_path}")
     return df
 
-
-def append_to_historical_data(new_df: pd.DataFrame) -> None:
-    try:
-        historical_df = load_historical_data()
-    except FileNotFoundError:
-        print("⚠️  No historical data found — initializing from new data.")
-        historical_df = pd.DataFrame()
+def append_to_historical_data(new_df: pd.DataFrame, feature_df: pd.DataFrame,
+                              historical_df: pd.DataFrame) -> None:
+    new_cols = [c for c in feature_df.columns if c not in new_df.columns]
+    if new_cols:
+        new_df = new_df.merge(feature_df[["doc_id"] + new_cols], on="doc_id", how="left")
 
     combined = pd.concat([historical_df, new_df], ignore_index=True)
 
@@ -364,3 +363,4 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
     local_path.parent.mkdir(parents=True, exist_ok=True)
     combined.to_csv(local_path, index=False)
     #print(f"✅ Written back locally to {local_path}")
+    return None
