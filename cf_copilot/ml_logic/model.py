@@ -5,42 +5,27 @@ from colorama import Fore, Style
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OrdinalEncoder
 from xgboost import XGBClassifier
-from sklearn.feature_selection import VarianceThreshold
 
 NUMERIC_FEATURES = [
-    "business_year", "invoice_age_days", "days_until_due", "pay_terms_days",
-    "invoice_month", "due_month", "days_past_due", "customer_avg_delay",
-    "late_payment_ratio", "prev_transaction_count", "days_since_last_invoice",
-    "customer_risk_score", "invoice_amount", "invoice_amount_log",
-    "invoice_month_sin","invoice_month_cos","due_month_sin","due_month_cos"
-]
-
-CATEGORICAL_FEATURES = [
-    "invoice_currency", "document_type", "invoice_size_cat", "invoice_size_cat_q"
+    "invoice_age_days","days_until_due","pay_terms_days","customer_avg_delay",
+    "days_since_last_invoice","invoice_amount_log","invoice_month_sin",
 ]
 
 def initialize_model() -> Pipeline:
     """Initialize a RandomForestClassifier inside a sklearn Pipeline.
 
     The pipeline includes a ColumnTransformer preprocessor that imputes
-    numeric features with median and ordinal-encodes categorical features.
+    numeric features with median.
 
     Returns:
         An unfitted sklearn Pipeline.
     """
     numeric_transformer = SimpleImputer(strategy="median")
 
-    categorical_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent", fill_value=-1)),
-        ("encoder", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
-    ])
-
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", numeric_transformer, NUMERIC_FEATURES),
-            ("cat", categorical_transformer, CATEGORICAL_FEATURES),
         ],
         remainder="drop",
     )
