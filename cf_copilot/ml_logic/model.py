@@ -5,7 +5,7 @@ from colorama import Fore, Style
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
+from sklearn.preprocessing import OrdinalEncoder
 from xgboost import XGBClassifier
 from sklearn.feature_selection import VarianceThreshold
 
