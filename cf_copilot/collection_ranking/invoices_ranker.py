@@ -25,8 +25,13 @@ def get_priority_invoices(invoices_df: pd.DataFrame, pipeline, current_date) -> 
     risk_df = _add_computed_risk_score(risk_df)
     risk_df = _add_collections_priority_score(risk_df)
 
-    return _collection_ranking(risk_df)
-
+    risk_df = _collection_ranking(risk_df)
+    risk_df = risk_df.merge(
+        invoices_df[["doc_id", "name_customer"]],
+        on="doc_id",
+        how="left"
+    )
+    return risk_df
 
 def _build_risk_table(probas: np.ndarray, invoices_df: pd.DataFrame, current_date) -> pd.DataFrame:
     """

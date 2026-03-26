@@ -25,7 +25,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from cf_copilot.params import GEMINI_API_KEY
+from cf_copilot.params import GEMINI_API_KEY, CURRENT_DATE
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -51,11 +51,13 @@ REQUIRED_KEYS    = {
 # ── Prompt Template ────────────────────────────────────────────────────────────
 
 RAG_PROMPT = PromptTemplate(
-    input_variables=["context", "invoice_context"],
+    input_variables=["context", "invoice_context", "current_date"],
     template="""
 You are a cash flow management assistant for a B2B supplier company.
 Your job is to decide the correct communication action for an outstanding invoice,
 based strictly on the company playbook provided below.
+
+We are working with test-data, which is 6 years old, so you need to always assume that today is {current_date}
 
 The goal is to maximise on-time cash collection while preserving customer relationships.
 
@@ -325,6 +327,7 @@ def generate_script(invoice, vector_store, k=4):
         raw_text = chain.invoke({
             "context":         context,
             "invoice_context": build_invoice_context(invoice),
+            "current_date": CURRENT_DATE
         })
     except Exception as e:
         return fallback_output(invoice, "LLM error: " + str(e))

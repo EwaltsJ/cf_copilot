@@ -98,7 +98,7 @@ def _render_invoice_summary(invoice: dict, bucket: int, risk_color: str):
             <span style="color:#6b7fa3;">Amount</span><br>
             <b>${float(invoice.get('total_open_amount',0)):,.0f}</b><br>
             <span style="color:#6b7fa3;">Days overdue</span><br>
-            <b style="color:#ff4d6d;">{invoice.get('days_past_due',0)}</b><br>
+            <b style="color:#ff4d6d;">{invoice.get('days_overdue',0)}</b><br>
             <span style="color:#6b7fa3;">Risk level</span><br>
             <b style="color:{risk_color};">{RISK_LABELS.get(bucket,'—')} (week {bucket})</b><br>
             <span style="color:#6b7fa3;">Late ratio</span><br>
