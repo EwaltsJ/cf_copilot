@@ -261,22 +261,26 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
 
     return big_df
 
-def upload_historical_data(local_csv_path: str = None) -> None:
-    if local_csv_path is None:
-        base_dir = Path(__file__).resolve().parents[2]
-        local_csv_path = base_dir / "raw_data" / "df.csv"
+def upload_historical_data(model_df: pd.DataFrame, hist_df: pd.DataFrame) -> None:
+    local_csv_path = LOCAL_HISTORICAL_DATA_PATH
+
+    model_df = engineer_features(model_df, model_df, CURRENT_DATE)
+
+    new_cols = [c for c in hist_df.columns if c not in model_df.columns]
+    if new_cols:
+        model_df = model_df.merge(hist_df[["doc_id"] + new_cols], on="doc_id", how="left")
+
+    model_df.to_csv(local_csv_path, index=False)
 
     local_path = Path(local_csv_path)
     if not local_path.is_file():
         raise FileNotFoundError(
             f"Source file not found at {local_path}. "
-            "Run data_cleaning() first to generate df.csv."
+            "Run data_cleaning() first to generate model_df.csv."
         )
+
     if ENV != 'production':
-        dest = Path(LOCAL_HISTORICAL_DATA_PATH)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(local_path, dest)
-        print(f"✅ Historical data copied locally to {dest}")
+        print(f"✅ Historical data saved locally to {local_path}")
         return
 
     client = gcs_storage.Client()
@@ -294,6 +298,8 @@ def load_historical_data() -> pd.DataFrame:
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
         data = blob.download_as_bytes()
         df = pd.read_csv(io.BytesIO(data), parse_dates=date_cols)
+        if "cust_number" in df.columns:
+            df["cust_number"] = df["cust_number"].astype(str)
         print(f"✅ Historical data loaded from GCS ({df.shape[0]} rows)")
         return df
 
