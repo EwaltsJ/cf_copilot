@@ -197,6 +197,8 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     )
 
     customer_features = pd.concat([avg_delay, late_ratio, prev_counts, last_invoice], axis=1)
+    customer_features = customer_features.reset_index().rename(columns={"index": "cust_number"})
+
     snapshot = snapshot.merge(customer_features, on="cust_number", how="left")
 
     snapshot["customer_risk_score"] = (
