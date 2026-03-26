@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from cf_copilot.ml_logic.registry import load_model, predict
-from cf_copilot.ml_logic.data import load_cashflow_data
+from cf_copilot.ml_logic.data import load_cashflow_data, load_historical_data
 from cf_copilot.cashflow_prediction.registry import predict_cashflow
 from cf_copilot.collection_ranking.invoices_ranker import get_priority_invoices
 
@@ -35,13 +35,6 @@ async def lifespan(app):
     except Exception as e:
         print(f"⚠️ Vector store load failed at startup: {e}")
         app.state.vector_store = None
-
-    # Load historical-data
-    try:
-        app.state.historical_data = load_cashflow_data()
-    except Exception as e:
-        print(f"⚠️  Data load failed at startup: {e}")
-        app.state.historical_data = None
 
     yield
     # Shutdown (nothing to clean up)
@@ -144,29 +137,26 @@ async def post_rag_script(invoice: dict):
             "error": "Vector store not loaded. Check CHROMA path and startup logs."
         }
 
-    invoice_data = app.state.historical_data
-    current_invoice = invoice_data[invoice_data['doc_id'] == invoice['doc_id']]
+    invoice_data = load_historical_data()
+    current_invoice = invoice_data[invoice_data['doc_id'] == int(invoice['doc_id'])]
 
     if current_invoice.empty:
         raise HTTPException(
             status_code=404,
             detail=f"Invoice {invoice['doc_id']} not found in historical data."
         )
-    current_invoice = current_invoice.rename(columns={
-    "name_customer": "customer_name",
-    })
 
     # Compute days_past_due from due_in_date
     current_invoice["days_past_due"] = (pd.Timestamp.now() - pd.to_datetime(current_invoice["due_in_date"])).dt.days
     # Enrich the incoming dict with required fields from the DataFrame
     row = current_invoice.iloc[0]
-    for field in ["doc_id", "customer_name", "cust_number", "total_open_amount", "due_in_date", "days_past_due"]:
+    for field in ["doc_id", "name_customer", "cust_number", "total_open_amount", "due_in_date", "days_past_due"]:
         if field not in invoice and field in row.index:
             invoice[field] = row[field]
 
     required_fields = [
         "doc_id",
-        "customer_name",
+        "name_customer",
         "cust_number",
         "total_open_amount",
         "due_in_date",

@@ -281,7 +281,7 @@ def fallback_output(invoice: dict, reason: str) -> dict:
         "reasoning":          f"Fallback triggered: {reason}",
         "playbook_reference": "N/A — fallback",
         "doc_id":         invoice.get("doc_id"),
-        "customer_name":      invoice.get("customer_name"),
+        "customer_name":      invoice.get("name_customer"),
         "generated_at":       datetime.now().isoformat(),
         "retrieved_sections": [],
     }
@@ -290,7 +290,7 @@ def fallback_output(invoice: dict, reason: str) -> dict:
 
 def generate_script(invoice, vector_store, k=4):
 
-    real_customer_name = invoice.get("customer_name", "")
+    real_customer_name = invoice.get("name_customer", "")
     # Build retrieval query from raw invoice facts
     if invoice["days_past_due"] > 0:
         status = "overdue"
@@ -346,13 +346,13 @@ def generate_script(invoice, vector_store, k=4):
         return fallback_output(invoice, "Validation failed: " + error)
 
         # Restore the real customer name in subject and email body
-    output["subject"] = output["subject"].replace("CUSTOMER_NAME", real_customer_name)
-    output["email_body"] = output["email_body"].replace("CUSTOMER_NAME", real_customer_name)
+    output["subject"] = output["subject"].replace("CUSTOMER_NAME", str(real_customer_name))
+    output["email_body"] = output["email_body"].replace("CUSTOMER_NAME", str(real_customer_name))
 
 
     # Add metadata
     output["doc_id"]     = invoice.get("doc_id")
-    output["customer_name"]  = invoice.get("customer_name")
+    output["customer_name"]  = invoice.get("name_customer")
     output["generated_at"]   = datetime.now().isoformat()
 
     retrieved_sections = []

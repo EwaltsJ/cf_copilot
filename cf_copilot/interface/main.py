@@ -70,8 +70,8 @@ def train():
     mlflow_transition_model(current_stage="None", new_stage="Staging")
 
     # 10. Seed / refresh historical data
-    upload_historical_data()
-    return pipeline
+    upload_historical_data(model_df, df)
+    return None
 
 
 def pred(X_new: pd.DataFrame = None):

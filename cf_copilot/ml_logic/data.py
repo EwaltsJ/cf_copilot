@@ -11,6 +11,7 @@ from cf_copilot.params import (
     GCS_BUCKET_NAME,
     GCS_HISTORICAL_DATA_PATH,
     LOCAL_HISTORICAL_DATA_PATH,
+    CURRENT_DATE
 )
 
 def load_cashflow_data(csv_name: str = "dataset.csv") -> pd.DataFrame:
@@ -171,12 +172,20 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     snapshot["due_month_cos"]     = np.cos(2 * np.pi * snapshot["due_month"] / 12)
 
     # B) Customer behaviour features
-    historical = df_full[df_full["invoice_paid"] <= current_date].copy()
-    historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)
-    avg_delay = historical.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
+    has_paid = df_full[
+        (df_full["invoice_paid"].notna()) &
+        (df_full["invoice_paid"] <= current_date)
+    ].copy()
+    has_paid["due_in_date"] = pd.to_datetime(has_paid["due_in_date"], format="%Y%m%d", errors="coerce")
+    if len(has_paid) > 0:
+        has_paid["delay"] = (has_paid["invoice_paid"] - has_paid["due_in_date"]).dt.days.clip(lower=0)
+        avg_delay = has_paid.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
 
-    historical["is_late"] = (historical["invoice_paid"] > historical["due_in_date"]).astype(int)
-    late_ratio = historical.groupby("cust_number")["is_late"].mean().rename("late_payment_ratio")
+        has_paid["is_late"] = (has_paid["invoice_paid"] > has_paid["due_in_date"]).astype(int)
+        late_ratio = has_paid.groupby("cust_number")["is_late"].mean().rename("late_payment_ratio")
+    else:
+        avg_delay = pd.Series(dtype=float, name="customer_avg_delay")
+        late_ratio = pd.Series(dtype=float, name="late_payment_ratio")
 
     before_current = df_full[df_full["invoice_sent"] < current_date]
     prev_counts = before_current.groupby("cust_number").size().rename("prev_transaction_count")
@@ -261,30 +270,32 @@ def build_sliding_window_snapshots(df: pd.DataFrame) -> pd.DataFrame:
 
     return big_df
 
-def upload_historical_data(local_csv_path: str = None) -> None:
-    if local_csv_path is None:
-        base_dir = Path(__file__).resolve().parents[2]
-        local_csv_path = base_dir / "raw_data" / "df.csv"
+def upload_historical_data(model_df: pd.DataFrame, hist_df: pd.DataFrame) -> None:
+    local_csv_path = LOCAL_HISTORICAL_DATA_PATH
+
+    model_df = engineer_features(model_df, model_df, CURRENT_DATE)
+
+    new_cols = [c for c in hist_df.columns if c not in model_df.columns]
+    if new_cols:
+        model_df = model_df.merge(hist_df[["doc_id"] + new_cols], on="doc_id", how="left")
+
+    model_df.to_csv(local_csv_path, index=False)
 
     local_path = Path(local_csv_path)
     if not local_path.is_file():
         raise FileNotFoundError(
             f"Source file not found at {local_path}. "
-            "Run data_cleaning() first to generate df.csv."
+            "Run data_cleaning() first to generate model_df.csv."
         )
+
     if ENV != 'production':
-        dest = Path(LOCAL_HISTORICAL_DATA_PATH)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(local_path, dest)
-        print(f"✅ Historical data copied locally to {dest}")
+        print(f"✅ Historical data saved locally to {local_path}")
         return
 
     client = gcs_storage.Client()
     blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
     blob.upload_from_filename(str(local_path), content_type="text/csv")
     print(f"✅ Uploaded {local_path} → gs://{GCS_BUCKET_NAME}/{GCS_HISTORICAL_DATA_PATH}")
-
-
 
 def load_historical_data() -> pd.DataFrame:
     date_cols = ["invoice_sent", "due_in_date", "invoice_paid"]
@@ -294,12 +305,13 @@ def load_historical_data() -> pd.DataFrame:
         blob = client.bucket(GCS_BUCKET_NAME).blob(GCS_HISTORICAL_DATA_PATH)
         data = blob.download_as_bytes()
         df = pd.read_csv(io.BytesIO(data), parse_dates=date_cols)
+        if "cust_number" in df.columns:
+            df["cust_number"] = df["cust_number"].astype(str)
         print(f"✅ Historical data loaded from GCS ({df.shape[0]} rows)")
         return df
 
     local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
     if not local_path.is_file():
-        # Fallback: initialize from df.csv on first use
         base_dir = Path(__file__).resolve().parents[2]
         model_df_path = base_dir / "raw_data" / "df.csv"
         if model_df_path.is_file():
@@ -311,7 +323,6 @@ def load_historical_data() -> pd.DataFrame:
                 df["cust_number"] = df["cust_number"].astype(str)
             return df
 
-        # If even df.csv is missing, last‑resort error
         raise FileNotFoundError(
             f"No historical data at {local_path} and no model_df at {model_df_path}. "
             "Run data_cleaning() or upload_historical_data() first."
@@ -320,16 +331,13 @@ def load_historical_data() -> pd.DataFrame:
     df = pd.read_csv(local_path, parse_dates=date_cols)
     if "cust_number" in df.columns:
         df["cust_number"] = df["cust_number"].astype(str)
-    #print(f"✅ Historical data loaded locally ({df.shape[0]} rows) from {local_path}")
     return df
 
-
-def append_to_historical_data(new_df: pd.DataFrame) -> None:
-    try:
-        historical_df = load_historical_data()
-    except FileNotFoundError:
-        print("⚠️  No historical data found — initializing from new data.")
-        historical_df = pd.DataFrame()
+def append_to_historical_data(new_df: pd.DataFrame, feature_df: pd.DataFrame,
+                              historical_df: pd.DataFrame) -> None:
+    new_cols = [c for c in feature_df.columns if c not in new_df.columns]
+    if new_cols:
+        new_df = new_df.merge(feature_df[["doc_id"] + new_cols], on="doc_id", how="left")
 
     combined = pd.concat([historical_df, new_df], ignore_index=True)
 
@@ -358,3 +366,4 @@ def append_to_historical_data(new_df: pd.DataFrame) -> None:
     local_path.parent.mkdir(parents=True, exist_ok=True)
     combined.to_csv(local_path, index=False)
     #print(f"✅ Written back locally to {local_path}")
+    return None
