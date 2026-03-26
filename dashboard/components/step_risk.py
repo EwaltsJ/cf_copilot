@@ -35,6 +35,142 @@ def _fmt_date(val) -> str:
     return str(val)
 
 
+def _selectbox_dark_css() -> str:
+    """Inject CSS to make the Streamlit selectbox match the dark table aesthetic."""
+    return """
+    <style>
+      /* Container — default */
+      div[data-testid="stSelectbox"] > div:first-child {
+        background: #0d1526 !important;
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 8px !important;
+        color: #8899bb !important;
+        font-family: 'DM Mono', monospace !important;
+        font-size: 0.78rem !important;
+        cursor: pointer !important;
+        outline: none !important;
+        box-shadow: none !important;
+      }
+      /* Kill ALL focus rings — BaseWeb injects them on multiple elements */
+      div[data-testid="stSelectbox"] *:focus,
+      div[data-testid="stSelectbox"] *:focus-visible,
+      div[data-testid="stSelectbox"] *:focus-within,
+      div[data-testid="stSelectbox"] [data-baseweb="select"]:focus-within,
+      div[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: rgba(255,255,255,0.12) !important;
+      }
+      /* The visible value text */
+      div[data-testid="stSelectbox"] > div:first-child > div:first-child {
+        color: #8899bb !important;
+        font-family: 'DM Mono', monospace !important;
+        font-size: 0.78rem !important;
+        cursor: pointer !important;
+      }
+      /* Hover state */
+      div[data-testid="stSelectbox"] > div:first-child:hover {
+        border-color: rgba(255,255,255,0.14) !important;
+        background: rgba(255,255,255,0.03) !important;
+        box-shadow: none !important;
+      }
+      /* Open / focus state — subtle, no white glow */
+      div[data-testid="stSelectbox"] > div:first-child:focus-within {
+        border-color: rgba(255,255,255,0.14) !important;
+        box-shadow: none !important;
+      }
+      /* Chevron icon */
+      div[data-testid="stSelectbox"] svg {
+        fill: #4a5a7a !important;
+        cursor: pointer !important;
+      }
+      /* Pointer cursor on the whole selectbox wrapper */
+      div[data-testid="stSelectbox"],
+      div[data-testid="stSelectbox"] * {
+        cursor: pointer !important;
+      }
+      /* Force popover to always open BELOW — override BaseWeb's top placement */
+      div[data-baseweb="popover"][data-placement="topLeft"],
+      div[data-baseweb="popover"][data-placement="top"],
+      div[data-baseweb="popover"][data-placement="topRight"] {
+        transform: none !important;
+        top: auto !important;
+        bottom: auto !important;
+      }
+      /* Dropdown popover */
+      div[data-baseweb="popover"] ul {
+        background: #0d1526 !important;
+        border: 1px solid rgba(255,255,255,0.09) !important;
+        border-radius: 10px !important;
+        padding: 4px !important;
+      }
+      /* Each option */
+      div[data-baseweb="popover"] li {
+        background: transparent !important;
+        color: #8899bb !important;
+        font-family: 'DM Mono', monospace !important;
+        font-size: 0.78rem !important;
+        border-radius: 6px !important;
+        padding: 8px 12px !important;
+        cursor: pointer !important;
+      }
+      /* Hovered option */
+      div[data-baseweb="popover"] li:hover {
+        background: rgba(255,255,255,0.05) !important;
+        color: #c9d4e8 !important;
+      }
+      /* Selected / active option */
+      div[data-baseweb="popover"] li[aria-selected="true"] {
+        background: rgba(255,255,255,0.055) !important;
+        color: #e8f0ff !important;
+      }
+    </style>
+    <script>
+    (function() {
+      // Poll until the selectbox exists, then wire up mouseleave-to-close
+      var _selectboxPoller = setInterval(function() {
+        var doc = window.parent.document;
+        var boxes = doc.querySelectorAll('div[data-testid="stSelectbox"]');
+        if (!boxes.length) return;
+        clearInterval(_selectboxPoller);
+
+        boxes.forEach(function(box) {
+          if (box._mouseLeaveWired) return;
+          box._mouseLeaveWired = true;
+
+          // When mouse leaves the selectbox trigger, close if popover is open
+          box.addEventListener('mouseleave', function() {
+            // Small delay so clicking an option still registers
+            setTimeout(function() {
+              var popover = doc.querySelector('div[data-baseweb="popover"] ul');
+              if (popover) {
+                // Click outside to dismiss — BaseWeb closes on document click
+                var evt = new MouseEvent('mousedown', {bubbles: true, cancelable: true});
+                doc.body.dispatchEvent(evt);
+              }
+            }, 180);
+          });
+
+          // Re-wire popover to always render below by overriding its inline top style
+          var observer = new MutationObserver(function() {
+            var popovers = doc.querySelectorAll('div[data-baseweb="popover"]');
+            popovers.forEach(function(p) {
+              var rect = box.getBoundingClientRect();
+              var pRect = p.getBoundingClientRect();
+              // If popover appears above the selectbox, flip it down
+              if (pRect.bottom < rect.top + 10) {
+                p.style.setProperty('top', (rect.bottom + window.parent.scrollY) + 'px', 'important');
+              }
+            });
+          });
+          observer.observe(doc.body, {childList: true, subtree: true});
+        });
+      }, 200);
+    })();
+    </script>
+    """
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # PUBLIC
 # ═══════════════════════════════════════════════════════════════════════
@@ -81,6 +217,38 @@ def _run_predictions_button():
                 st.session_state.step = max(st.session_state.step, 4)
 
 
+
+# ── Business segment lookup ────────────────────────────────────────────
+# Keyed on cust_number (string).  Values mirror the supplier's real
+# industry so the Segment KPI card in _render_mock_panel is meaningful.
+BUSINESS_SEGMENT_MAP: dict[str, str] = {
+    # Walmart — multinational mass-market retail
+    "200769623": "Mass Retail",
+    # Ben E. Keith — foodservice & beverage distribution
+    "200980828": "Foodservice Distribution",
+    # McKesson / MDV — pharmaceutical & healthcare distribution
+    "200792734": "Healthcare Distribution",
+    # THE corporation (CAD) — Canadian retail
+    "140106181": "Retail (Canada)",
+    # C&S Wholesale Grocers — wholesale grocery supply chain
+    "200762301": "Wholesale Grocery",
+    # Brookshire Brothers — regional retail grocery chain
+    "200743129": "Retail Grocery",
+    # Sysco — global foodservice distribution
+    "200186937": "Foodservice Distribution",
+    # GO Corporation — technology / enterprise software
+    "200721222": "Technology",
+    # Costco — membership-based warehouse retail
+    "200794332": "Warehouse Retail",
+    # Albertsons — large-format retail grocery chain
+    "200881076": "Retail Grocery",
+    # SYSTEMS systems (U013) — IT systems & services
+    "100053554": "IT Services",
+    # Fareway Stores — regional retail grocery
+    "200783734": "Retail Grocery",
+}
+
+
 def _build_mock_fallback() -> pd.DataFrame:
     """Build a mock DataFrame that mimics the API shape when the backend is down."""
     mock_result = mock_predict(st.session_state.df)
@@ -90,6 +258,14 @@ def _build_mock_fallback() -> pd.DataFrame:
         merged["predicted_bucket"] = mock_result["predicted_bucket"].values
     else:
         merged["predicted_bucket"] = 3
+
+    # Enrich with business segment derived from known customer numbers
+    merged["business_segment"] = (
+        merged["cust_number"]
+        .astype(str)
+        .map(BUSINESS_SEGMENT_MAP)
+        .fillna("Other")
+    )
     return merged
 
 
@@ -136,6 +312,7 @@ def _render_api_results(pred: pd.DataFrame):
             use_container_width=True,
             hide_index=True,
         )
+        st.html(_selectbox_dark_css())
         selected_opt = st.selectbox(
             "Select invoice to inspect", options, label_visibility="collapsed",
         )
@@ -282,40 +459,148 @@ def _render_mock_results(pred: pd.DataFrame):
     )
 
     options = ["Select an invoice…"] + [
-        f"{r.get('doc_id', idx)}  |  {r.get('name_customer', idx)}  |  "
+        f"{_fmt_id(r.get('doc_id', idx))}  |  {r.get('name_customer', idx)}  |  "
         f"${float(r['total_open_amount']):,.0f}  |  "
         f"{RISK_LABELS.get(int(r['predicted_bucket']), '?')}"
         for idx, r in top10.iterrows()
     ]
 
+    # ── colour + bar palette keyed on bucket ──────────────────────────
+    PILL_STYLE = {
+        6: ("rgba(255,45,85,0.18)",  "#ff2d55", "rgba(255,45,85,0.45)"),
+        5: ("rgba(255,77,109,0.15)", "#ff4d6d", "rgba(255,77,109,0.40)"),
+        4: ("rgba(255,140,0,0.15)",  "#ff8c00", "rgba(255,140,0,0.40)"),
+        3: ("rgba(255,193,7,0.12)",  "#ffc107", "rgba(255,193,7,0.35)"),
+        2: ("rgba(100,200,120,0.12)","#64c878", "rgba(100,200,120,0.30)"),
+        1: ("rgba(0,212,170,0.10)",  "#00d4aa", "rgba(0,212,170,0.25)"),
+    }
+
+    def _bar_html(bucket: int) -> str:
+        pct  = int(bucket / 6 * 100)
+        _, color, _ = PILL_STYLE.get(bucket, PILL_STYLE[3])
+        return (
+            f'<div style="width:100%;background:rgba(255,255,255,0.06);'
+            f'border-radius:4px;height:6px;overflow:hidden;">'
+            f'<div style="width:{pct}%;height:100%;background:{color};'
+            f'border-radius:4px;"></div></div>'
+        )
+
+    def _pill_html(label: str, bucket: int) -> str:
+        bg, fg, bdr = PILL_STYLE.get(bucket, PILL_STYLE[3])
+        return (
+            f'<span style="display:inline-block;padding:2px 10px;'
+            f'border-radius:20px;font-size:0.72rem;font-weight:600;'
+            f'letter-spacing:0.04em;background:{bg};color:{fg};'
+            f'border:1px solid {bdr};white-space:nowrap;">{label}</span>'
+        )
+
+    # Build table rows HTML
+    tbody_rows = ""
+    for i, (_, r) in enumerate(top10.iterrows()):
+        b        = int(r.get("predicted_bucket", 3))
+        label    = RISK_LABELS.get(b, "—")
+        invoice  = _fmt_id(r.get("doc_id", "—"))
+        customer = str(r.get("name_customer", "—"))[:20]
+        amount   = f"${float(r.get('total_open_amount', 0)):,.0f}"
+        due      = _fmt_date(r.get("due_in_date", "—"))
+        days_od  = int(r.get("days_past_due", 0))
+        _, row_accent, _ = PILL_STYLE.get(b, PILL_STYLE[3])
+
+        tbody_rows += f"""
+        <tr class="inv-row" data-idx="{i}"
+            style="border-left:3px solid transparent;cursor:pointer;
+                   transition:background 0.15s,border-color 0.15s;"
+            onmouseover="this.style.background='rgba(255,255,255,0.04)';
+                         this.style.borderLeftColor='{row_accent}';"
+            onmouseout="if(!this.classList.contains('sel')){{
+                            this.style.background='transparent';
+                            this.style.borderLeftColor='transparent';}}"
+            onclick="selectRow(this,{i})">
+          <td style="font-family:'DM Mono',monospace;font-size:0.78rem;
+                     color:#8899bb;padding:10px 12px 10px 10px;
+                     white-space:nowrap;">{invoice}</td>
+          <td style="font-size:0.83rem;color:#c9d4e8;padding:10px 12px;
+                     max-width:160px;overflow:hidden;text-overflow:ellipsis;
+                     white-space:nowrap;">{customer}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:0.83rem;
+                     color:#e8f0ff;padding:10px 12px;text-align:right;
+                     white-space:nowrap;">{amount}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:0.78rem;
+                     color:#6b7fa3;padding:10px 12px;white-space:nowrap;">{due}</td>
+          <td style="font-size:0.78rem;color:#6b7fa3;
+                     padding:10px 12px;text-align:center;">{days_od}</td>
+          <td style="padding:10px 12px;">{_pill_html(label, b)}</td>
+          <td style="padding:10px 16px 10px 4px;min-width:80px;">
+              {_bar_html(b)}</td>
+        </tr>"""
+
+    table_html = f"""
+    <style>
+      .inv-row.sel {{
+        background: rgba(255,255,255,0.055) !important;
+      }}
+    </style>
+    <div style="font-size:0.72rem;color:#6b7fa3;text-transform:uppercase;
+                letter-spacing:0.08em;margin-bottom:0.7rem;padding-left:2px;">
+        Top 10 riskiest invoices</div>
+    <div style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;
+                overflow:hidden;background:#0d1526;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.04);
+                     border-bottom:1px solid rgba(255,255,255,0.07);">
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px 9px 10px;
+                       text-align:left;font-weight:500;">Invoice</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px;
+                       text-align:left;font-weight:500;">Customer</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px;
+                       text-align:right;font-weight:500;">Amount</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px;
+                       text-align:left;font-weight:500;">Due</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px;
+                       text-align:center;font-weight:500;">Days OD</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 12px;
+                       text-align:left;font-weight:500;">Risk</th>
+            <th style="font-size:0.68rem;color:#4a5a7a;text-transform:uppercase;
+                       letter-spacing:0.07em;padding:9px 16px 9px 4px;
+                       text-align:left;font-weight:500;">Week</th>
+          </tr>
+        </thead>
+        <tbody>{tbody_rows}</tbody>
+      </table>
+    </div>
+    <script>
+      function selectRow(el, idx) {{
+        document.querySelectorAll('.inv-row').forEach(function(r) {{
+          r.classList.remove('sel');
+          r.style.background = 'transparent';
+          r.style.borderLeftColor = 'transparent';
+        }});
+        el.classList.add('sel');
+        el.style.background = 'rgba(255,255,255,0.055)';
+        // sync with the hidden Streamlit selectbox (1-indexed, 0 = placeholder)
+        var sel = window.parent.document.querySelectorAll(
+            'div[data-testid="stSelectbox"] select');
+        if (sel.length) {{ sel[sel.length-1].selectedIndex = idx + 1;
+                           sel[sel.length-1].dispatchEvent(new Event('change')); }}
+      }}
+    </script>
+    """
+
     col_table, col_panel = st.columns([1.1, 0.9])
 
     with col_table:
-        st.markdown("**Top 10 riskiest invoices**")
-        rows = []
-        for _, r in top10.iterrows():
-            b = int(r.get("predicted_bucket", 3))
-            rows.append({
-                 "Invoice":  str(r.get("doc_id", "—")),
-                "Customer": str(r.get("name_customer", "—"))[:22],
-                "Amount":   f"${float(r.get('total_open_amount', 0)):,.0f}",
-                "Due":      str(r.get("due_in_date", "—")),
-                "Days OD":  int(r.get("days_past_due", 0)),
-                "Risk":     RISK_LABELS.get(b, "—"),
-                "Week":     b,
-            })
-        st.dataframe(
-            pd.DataFrame(rows),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Week": st.column_config.ProgressColumn(
-                    "Week", min_value=1, max_value=6, format="%d",
-                ),
-            },
-        )
+        st.html(table_html)
+        st.html(_selectbox_dark_css())
         selected_opt = st.selectbox(
-            "Select invoice to inspect", options, label_visibility="collapsed",
+            "Select invoice to inspect", options,
+            label_visibility="collapsed",
         )
 
     with col_panel:

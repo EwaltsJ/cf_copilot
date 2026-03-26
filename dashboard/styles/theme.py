@@ -145,7 +145,7 @@ div.nav a.nav-cta:visited, div.nav a.nav-cta:active {
 .feat-card-hover {
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
     border-radius: 16px; padding: 1.8rem; position: relative; overflow: hidden;
-    transition: all 0.35s ease; cursor: default; min-height: 200px; opacity: 0.45;
+    transition: all 0.35s ease; cursor: default; min-height: 200px; opacity: 0.8;
 }
 .feat-card-hover:hover {
     background: rgba(0,212,170,0.07); border-color: rgba(0,212,170,0.3);
@@ -186,7 +186,7 @@ div.nav a.nav-cta:visited, div.nav a.nav-cta:active {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; padding: 2.2rem 2rem; min-height: 140px; width: 100%;
     background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px; margin-bottom: 1.5rem; opacity: 0.45; cursor: default;
+    border-radius: 16px; margin-bottom: 1.5rem; opacity: 0.8; cursor: default;
     transition: all 0.35s ease;
 }
 .step-block:hover {
@@ -215,6 +215,34 @@ div.nav a.nav-cta:visited, div.nav a.nav-cta:active {
 .kpi-val { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; color: #ffffff; }
 .kpi-sub { font-size: 0.8rem; color: #00d4aa; margin-top: 0.1rem; }
 .kpi-lbl { font-size: 0.72rem; color: #6b7fa3; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.3rem; }
+
+#defines the brightness and colors
+
+/* st.metric overrides — label, value, delta */
+[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+}
+[data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] {
+    color: #8a9bbf !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+}
+[data-testid="stMetricValue"] > div,
+[data-testid="stMetricValue"] {
+    color: #ffffff !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 1.8rem !important;
+    font-weight: 500 !important;
+}
+[data-testid="stMetricDelta"] { color: #00d4aa !important; }
+
+
 
 /* Email / detail cards */
 .email-box {
