@@ -33,7 +33,7 @@ def initialize_model() -> Pipeline:
     numeric_transformer = SimpleImputer(strategy="median")
 
     categorical_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="constant", fill_value=-1)),
+        ("imputer", SimpleImputer(strategy="most_frequent", fill_value=-1)),
         ("encoder", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
     ])
 
@@ -53,15 +53,15 @@ def initialize_model() -> Pipeline:
         n_jobs=4,
         tree_method="hist",
         verbosity=0,
-        colsample_bytree=0.7265477506155757,
-        gamma=0.058794858725743554,
-        learning_rate=0.024522728891053808,
-        max_depth=7,
-        min_child_weight=2,
-        n_estimators=352,
-        reg_alpha=0.5867511656638482,
-        reg_lambda=1.930510614528276,
-        subsample=0.8821102743060054,
+        colsample_bytree=0.62625093750534,
+        gamma=0.12896652080446278,
+        learning_rate=0.025805236304460133,
+        max_depth=9,
+        min_child_weight=6,
+        n_estimators=264,
+        reg_alpha=1.1682580031634093,
+        reg_lambda=1.7185239911639494,
+        subsample=0.7919464969390382,
     )
 
     pipeline = Pipeline(steps=[
