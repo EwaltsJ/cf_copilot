@@ -172,12 +172,20 @@ def engineer_features(snapshot: pd.DataFrame, df_full: pd.DataFrame,
     snapshot["due_month_cos"]     = np.cos(2 * np.pi * snapshot["due_month"] / 12)
 
     # B) Customer behaviour features
-    historical = df_full[df_full["invoice_paid"] <= current_date].copy()
-    historical["delay"] = (historical["invoice_paid"] - historical["due_in_date"]).dt.days.clip(lower=0)
-    avg_delay = historical.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
+    has_paid = df_full[
+        (df_full["invoice_paid"].notna()) &
+        (df_full["invoice_paid"] <= current_date)
+    ].copy()
+    has_paid["due_in_date"] = pd.to_datetime(has_paid["due_in_date"], format="%Y%m%d", errors="coerce")
+    if len(has_paid) > 0:
+        has_paid["delay"] = (has_paid["invoice_paid"] - has_paid["due_in_date"]).dt.days.clip(lower=0)
+        avg_delay = has_paid.groupby("cust_number")["delay"].mean().rename("customer_avg_delay")
 
-    historical["is_late"] = (historical["invoice_paid"] > historical["due_in_date"]).astype(int)
-    late_ratio = historical.groupby("cust_number")["is_late"].mean().rename("late_payment_ratio")
+        has_paid["is_late"] = (has_paid["invoice_paid"] > has_paid["due_in_date"]).astype(int)
+        late_ratio = has_paid.groupby("cust_number")["is_late"].mean().rename("late_payment_ratio")
+    else:
+        avg_delay = pd.Series(dtype=float, name="customer_avg_delay")
+        late_ratio = pd.Series(dtype=float, name="late_payment_ratio")
 
     before_current = df_full[df_full["invoice_sent"] < current_date]
     prev_counts = before_current.groupby("cust_number").size().rename("prev_transaction_count")
@@ -289,8 +297,6 @@ def upload_historical_data(model_df: pd.DataFrame, hist_df: pd.DataFrame) -> Non
     blob.upload_from_filename(str(local_path), content_type="text/csv")
     print(f"✅ Uploaded {local_path} → gs://{GCS_BUCKET_NAME}/{GCS_HISTORICAL_DATA_PATH}")
 
-
-
 def load_historical_data() -> pd.DataFrame:
     date_cols = ["invoice_sent", "due_in_date", "invoice_paid"]
 
@@ -306,7 +312,6 @@ def load_historical_data() -> pd.DataFrame:
 
     local_path = Path(LOCAL_HISTORICAL_DATA_PATH)
     if not local_path.is_file():
-        # Fallback: initialize from df.csv on first use
         base_dir = Path(__file__).resolve().parents[2]
         model_df_path = base_dir / "raw_data" / "df.csv"
         if model_df_path.is_file():
@@ -318,7 +323,6 @@ def load_historical_data() -> pd.DataFrame:
                 df["cust_number"] = df["cust_number"].astype(str)
             return df
 
-        # If even df.csv is missing, last‑resort error
         raise FileNotFoundError(
             f"No historical data at {local_path} and no model_df at {model_df_path}. "
             "Run data_cleaning() or upload_historical_data() first."
@@ -327,7 +331,6 @@ def load_historical_data() -> pd.DataFrame:
     df = pd.read_csv(local_path, parse_dates=date_cols)
     if "cust_number" in df.columns:
         df["cust_number"] = df["cust_number"].astype(str)
-    #print(f"✅ Historical data loaded locally ({df.shape[0]} rows) from {local_path}")
     return df
 
 def append_to_historical_data(new_df: pd.DataFrame, feature_df: pd.DataFrame,
