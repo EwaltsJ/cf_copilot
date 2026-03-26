@@ -24,8 +24,21 @@ def predict_cashflow(invoices_df: pd.DataFrame, pipeline) -> pd.DataFrame:
     return _aggregate_weekly_forecast(pred_df)
 
 
+def sharpen_probabilities(probas: np.ndarray, temperature: float = 0.7) -> np.ndarray:
+    """
+    Apply temperature scaling to sharpen probabilities.
+    Lower temperature (<1) = sharper distribution.
+    """
+    probas = np.clip(probas, 1e-12, 1.0)
+    probas = probas ** (1 / temperature)
+    probas = probas / probas.sum(axis=1, keepdims=True)
+    return probas
+
+
 def _build_prediction_table(probas: np.ndarray, invoices_df: pd.DataFrame) -> pd.DataFrame:
     """Attach model probabilities to invoice amounts."""
+    probas = sharpen_probabilities(probas, temperature=0.8)
+
     prob_df = pd.DataFrame(probas, columns=[f"p_{c}" for c in CLASS_NAMES])
 
     result = invoices_df[["total_open_amount"]].reset_index(drop=True)

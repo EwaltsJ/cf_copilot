@@ -5,7 +5,7 @@ from sklearn.pipeline import Pipeline
 
 from colorama import Fore, Style
 
-from cf_copilot.cashflow_prediction.registry import WEEK_CLASSES
+from cf_copilot.cashflow_prediction.registry import sharpen_probabilities, WEEK_CLASSES
 from cf_copilot.ml_logic.encoders import preprocess
 
 
@@ -131,6 +131,7 @@ def evaluate_forecast_holdout(
 
         X_snapshot, _ = preprocess(snapshot_df)
         probas = model.predict_proba(X_snapshot)
+        probas = sharpen_probabilities(probas, temperature=0.8)
 
         pred_cash_df = snapshot_df.copy()
 
