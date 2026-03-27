@@ -218,7 +218,7 @@ def _run_predictions_button():
 
 
 
-# ── Business segment lookup ────────────────────────────────────────────
+#  Business segment lookup
 # Keyed on cust_number (string).  Values mirror the supplier's real
 # industry so the Segment KPI card in _render_mock_panel is meaningful.
 BUSINESS_SEGMENT_MAP: dict[str, str] = {
