@@ -29,12 +29,12 @@ async def lifespan(app):
         print(f"⚠️  Model load failed at startup: {e}")
         app.state.pipeline = None
     try:
-        df = load_cashflow_data()
+        df = load_historical_data()
         app.state.historical_data = df
-        # O(1) lookup instead of O(n) scan on every request
         app.state.invoice_map = (
             df.set_index("doc_id").to_dict("index") if df is not None else {}
         )
+        print("✅ historical_data loaded successfully.")
     except Exception as e:
         print(f"⚠️  Data load failed at startup: {e}")
         app.state.historical_data = None
