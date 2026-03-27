@@ -266,7 +266,7 @@ def prepare_features(df: pd.DataFrame) -> tuple:
     historical_df = load_historical_data()
     featured_df = engineer_features(cleaned_df, historical_df, current_date)
 
-    append_to_historical_data(df, featured_df, historical_df)
+    # append_to_historical_data(df, featured_df, historical_df)
 
     X, _ = preprocess(featured_df, inference=True)
     return X, cleaned_df
