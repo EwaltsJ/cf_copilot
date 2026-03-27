@@ -13,6 +13,11 @@ from cf_copilot.collection_ranking.invoices_ranker import get_priority_invoices
 from cf_copilot.rag.script_generator import generate_script, load_vector_store
 from cf_copilot.params import CHROMA_PATH, CURRENT_DATE
 
+REQUIRED_FIELDS = [
+    "doc_id", "name_customer", "cust_number",
+    "total_open_amount", "due_in_date", "days_past_due",
+]
+
 @asynccontextmanager
 async def lifespan(app):
     """Load model and vector store once when the server starts"""
@@ -23,6 +28,17 @@ async def lifespan(app):
     except Exception as e:
         print(f"⚠️  Model load failed at startup: {e}")
         app.state.pipeline = None
+    try:
+        df = load_cashflow_data()
+        app.state.historical_data = df
+        # O(1) lookup instead of O(n) scan on every request
+        app.state.invoice_map = (
+            df.set_index("doc_id").to_dict("index") if df is not None else {}
+        )
+    except Exception as e:
+        print(f"⚠️  Data load failed at startup: {e}")
+        app.state.historical_data = None
+        app.state.invoice_map = {}
 
     # Load RAG vector store
     try:
@@ -137,38 +153,20 @@ async def post_rag_script(invoice: dict):
             "error": "Vector store not loaded. Check CHROMA path and startup logs."
         }
 
-    invoice_data = load_historical_data()
-    current_invoice = invoice_data[invoice_data['doc_id'] == int(invoice['doc_id'])]
-
-    if current_invoice.empty:
+    row = app.state.invoice_map.get(int(invoice['doc_id']))
+    if row is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Invoice {invoice['doc_id']} not found in historical data."
+            detail=f"Invoice {invoice['doc_id']} not found in historical data.",
         )
-
-    # Compute days_past_due from due_in_date
-    current_invoice["days_past_due"] = (pd.Timestamp.now() - pd.to_datetime(current_invoice["due_in_date"])).dt.days
     # Enrich the incoming dict with required fields from the DataFrame
-    row = current_invoice.iloc[0]
-    for field in ["doc_id", "name_customer", "cust_number", "total_open_amount", "due_in_date", "days_past_due"]:
-        if field not in invoice and field in row.index:
+    for field in REQUIRED_FIELDS:
+        if field not in invoice and field in row:
             invoice[field] = row[field]
 
-    required_fields = [
-        "doc_id",
-        "name_customer",
-        "cust_number",
-        "total_open_amount",
-        "due_in_date",
-        "days_past_due",
-    ]
-    missing_fields = [field for field in required_fields if field not in invoice]
-    if missing_fields:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Missing required invoice fields: {missing_fields}"
-        )
-
+    missing = [f for f in REQUIRED_FIELDS if f not in invoice]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing fields: {missing}")
     try:
         result = generate_script(invoice=invoice, vector_store=vector_store)
         return result
