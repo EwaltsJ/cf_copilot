@@ -276,6 +276,7 @@ def upload_historical_data(model_df: pd.DataFrame, hist_df: pd.DataFrame) -> Non
     local_csv_path = LOCAL_HISTORICAL_DATA_PATH
 
     model_df = engineer_features(model_df, model_df, CURRENT_DATE)
+    model_df = model_df.drop_duplicates(subset=["doc_id"])
 
     new_cols = [c for c in hist_df.columns if c not in model_df.columns]
     if new_cols:
